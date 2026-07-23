@@ -39,16 +39,21 @@ def render_base_fragment(docker_context: Path, versions: dict) -> None:
         opencode_version="1.17.11",
         uv_cache_dir="/opt/cache/uv",
         python_version="3.12",
+        target_platform="linux/amd64",
     )
     dockerfile_d = docker_context / "dockerfile.d"
     dockerfile_d.mkdir(parents=True, exist_ok=True)
     (dockerfile_d / "00-base.fragment").write_text(content, encoding="utf-8")
 
 
-def render_kernel_fragment(docker_context: Path, *, final_stage: str) -> None:
+def render_kernel_fragment(docker_context: Path, *, final_stage: str, versions: dict) -> None:
     env = _jinja_env()
     template = env.get_template("99-kernel.fragment.j2")
-    content = template.render(final_stage=final_stage)
+    pulumi_version = versions.get("pulumi", {}).get("minimum-version", "3.163.0")
+    content = template.render(
+        final_stage=final_stage,
+        pulumi_version=pulumi_version,
+    )
     dockerfile_d = docker_context / "dockerfile.d"
     (dockerfile_d / "99-kernel.fragment").write_text(content, encoding="utf-8")
 

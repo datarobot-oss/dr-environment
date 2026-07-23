@@ -10,7 +10,41 @@ uv tool install .
 uv pip install -e .
 ```
 
-## Usage
+## Make an execution environment
+
+1. Generate the Docker context from your App Framework recipe:
+
+```bash
+dr environment recipe --recipe-path datarobot-agent-application
+```
+
+This writes `docker_context/` in the current working directory (and `agent/docker_context.tar.gz` unless you pass `--no-tarball`).
+
+2. Change into the generated context:
+
+```bash
+cd docker_context
+```
+
+3. Build the image for **linux/amd64** (required for DataRobot notebook kernels):
+
+```bash
+docker build --platform linux/amd64 -t exec-env .
+```
+
+On Apple Silicon, always pass `--platform linux/amd64`. An arm64 image fails at runtime with `exec format error` on `start_server.sh`.
+
+4. Export the image to a tarball:
+
+```bash
+docker image save exec-env -o image.tar
+```
+
+5. Upload `image.tar` as a custom execution environment in DataRobot:
+
+![Upload execution environment in DataRobot](docs/exec-env.png)
+
+## Usage reference
 
 ```bash
 dr environment recipe --recipe-path /path/to/datarobot-agent-application
@@ -49,7 +83,7 @@ Build **fails** if a component has:
 - `go.mod` without `go.sum` (fix: `go mod tidy`)
 - Stale lockfiles (`uv lock --check`, `npm ci --dry-run`, or `go mod verify` failure)
 
-## Runtime cache behavior (no template changes)
+## Runtime cache behavior
 
 The Dockerfile sets tool-native env vars:
 
@@ -57,6 +91,8 @@ The Dockerfile sets tool-native env vars:
 - `NPM_CONFIG_CACHE=/opt/cache/npm`
 - `NPM_CONFIG_PREFER_OFFLINE=true`
 - `GOMODCACHE` / `GOCACHE`
+
+Per-component cache stages run `uv sync --frozen --no-install-project` against each `uv.lock` so runtime `uv sync --offline` can resolve lockfile wheels (including platform-specific builds like `litellm`).
 
 The Dockerfile always sets strict offline env vars (`UV_OFFLINE=1`, `NPM_CONFIG_OFFLINE=true`, `GOPROXY=off`) in addition to shared cache paths. `NOTEBOOKS_AIR_GAP=1` in `setup-caches.sh` applies the same overrides for login shells.
 

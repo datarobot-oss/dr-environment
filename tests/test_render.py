@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from dr_environment.render import assemble_dockerfile, copy_static_template, template_root
+from dr_environment.render import (
+    assemble_dockerfile,
+    copy_static_template,
+    render_kernel_fragment,
+    template_root,
+)
 
 
 def test_assemble_dockerfile_orders_fragments(tmp_path: Path) -> None:
@@ -21,7 +26,6 @@ def test_copy_static_template_includes_dockerfile_assets(tmp_path: Path) -> None
     copy_static_template(docker_context)
 
     expected = [
-        "run_agent.py",
         "agent/agent.py",
         "agent/cgroup_watchers.py",
         "jupyter_kernel_gateway_config.py",
@@ -40,4 +44,15 @@ def test_copy_static_template_includes_dockerfile_assets(tmp_path: Path) -> None
     for rel in expected:
         assert (docker_context / rel).is_file(), rel
 
-    assert (template_root() / "static" / "run_agent.py").is_file()
+
+def test_render_kernel_fragment_includes_pulumi_version(tmp_path: Path) -> None:
+    docker_context = tmp_path / "ctx"
+    (docker_context / "dockerfile.d").mkdir(parents=True)
+    versions = {"pulumi": {"minimum-version": "3.206.0"}}
+
+    render_kernel_fragment(docker_context, final_stage="base", versions=versions)
+
+    content = (docker_context / "dockerfile.d" / "99-kernel.fragment").read_text()
+    assert 'PULUMI_VERSION=3.206.0' in content
+    assert 'get.pulumi.com' in content
+    assert 'pulumi login --local' in content

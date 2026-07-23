@@ -69,7 +69,7 @@ def build(
     final_stage = write_component_cache_fragments(active, docker_context)
 
     render_kernel_fragment(
-        docker_context, final_stage=final_stage or "base"
+        docker_context, final_stage=final_stage or "base", versions=versions
     )
     assemble_dockerfile(docker_context)
 

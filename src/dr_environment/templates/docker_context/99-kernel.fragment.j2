@@ -5,6 +5,7 @@ ARG GIT_COMMIT
 ARG VENV_PATH
 ARG CLI_VERSION
 ARG OPENCODE_VERSION
+ARG PULUMI_VERSION={{ pulumi_version }}
 
 LABEL com.datarobot.repo-name="notebooks"
 LABEL com.datarobot.repo-sha=$GIT_COMMIT
@@ -22,6 +23,13 @@ RUN curl -fsSL -o /tmp/dr.tar.gz https://github.com/datarobot-oss/cli/releases/d
 RUN /home/notebooks/.local/bin/dr/dr plugin install xp \
     && /home/notebooks/.local/bin/dr/dr plugin install opencode \
     && /home/notebooks/.local/bin/dr/dr plugin install assist
+
+RUN curl -fsSL https://get.pulumi.com | sh -s -- --version "$PULUMI_VERSION" --install-root /home/notebooks/.local
+
+ENV PATH="/home/notebooks/.local/bin:$PATH" \
+    PULUMI_SKIP_UPDATE_CHECK=true
+
+RUN pulumi login --local
 
 RUN curl -fsSL -o /tmp/opencode-install.sh https://opencode.ai/install \
     && bash /tmp/opencode-install.sh --no-modify-path -v "$OPENCODE_VERSION" \

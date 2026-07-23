@@ -42,7 +42,7 @@ def test_python_cache_fragment_omits_core_for_other_components(tmp_path: Path) -
     write_component_cache_fragment(component, docker_context, previous_stage="base")
 
     content = (docker_context / "dockerfile.d" / "15-cache-fastapi_server.fragment").read_text()
-    assert f"--no-emit-package {LOCAL_SHARED_PACKAGE}" in content
+    assert f"--no-install-package {LOCAL_SHARED_PACKAGE}" in content
 
 
 def test_python_cache_fragment_keeps_core_for_core_component(tmp_path: Path) -> None:
@@ -63,7 +63,7 @@ def test_python_cache_fragment_keeps_core_for_core_component(tmp_path: Path) -> 
     write_component_cache_fragment(component, docker_context, previous_stage="base")
 
     content = (docker_context / "dockerfile.d" / "11-cache-core.fragment").read_text()
-    assert "--no-emit-package core" not in content
+    assert "--no-install-package core" not in content
 
 
 def test_copy_component_strips_core_from_pyproject(tmp_path: Path) -> None:

@@ -67,18 +67,19 @@ def _copy_component_tree(component_name: str) -> str:
 
 
 def _python_cache_lines(component_name: str) -> list[str]:
-    export_flags = "--frozen --no-emit-workspace"
+    sync_flags = "--frozen --no-install-project"
     if component_name != LOCAL_SHARED_PACKAGE:
-        export_flags += f" --no-emit-package {LOCAL_SHARED_PACKAGE}"
+        sync_flags += f" --no-install-package {LOCAL_SHARED_PACKAGE}"
 
+    warm_venv = f"/tmp/uv-cache-warm-{component_name}"
     return [
         f"ENV UV_CACHE_DIR={UV_CACHE}",
         _copy_component_tree(component_name),
         f"WORKDIR /tmp/cache-work/{component_name}",
-        f"RUN uv export {export_flags} -o requirements.txt \\",
-        f"    && uv pip install -r requirements.txt --python-platform {PYTHON_PLATFORM} \\",
-        "        --python ${VENV_PATH}/bin/python --target /tmp/uv-cache-warm \\",
-        "    && rm -rf /tmp/uv-cache-warm",
+        f"RUN UV_PROJECT_ENVIRONMENT={warm_venv} \\",
+        f"    uv sync {sync_flags} --python-platform {PYTHON_PLATFORM} \\",
+        "        --python ${VENV_PATH}/bin/python \\",
+        f"    && rm -rf {warm_venv}",
     ]
 
 

@@ -11,10 +11,12 @@ ARG CLI_VERSION={{ cli_version }}
 ARG OPENCODE_VERSION={{ opencode_version }}
 ARG UV_CACHE_DIR={{ uv_cache_dir }}
 ARG PYTHON_VERSION={{ python_version }}
+ARG TARGETPLATFORM={{ target_platform }}
 
 # Open-source Wolfi + Python stack (see datarobot-user-models Dockerfile.local).
+# DataRobot notebook kernels deploy on linux/amd64; pin platform to avoid arm64 exec format errors.
 # hadolint ignore=DL3007
-FROM cgr.dev/chainguard/wolfi-base:latest AS wolfi_python_dev
+FROM --platform=${TARGETPLATFORM} cgr.dev/chainguard/wolfi-base:latest AS wolfi_python_dev
 
 ARG PYTHON_VERSION
 SHELL ["/bin/sh", "-o", "pipefail", "-c"]
@@ -90,7 +92,6 @@ ENV PATH="$VENV_PATH/bin:$PATH" \
 RUN uv venv ${VENV_PATH}
 COPY kernel/requirements.txt /tmp/kernel/requirements.txt
 RUN . ${VENV_PATH}/bin/activate && uv pip install -r /tmp/kernel/requirements.txt
-COPY ./run_agent.py ${WORKDIR}/
 WORKDIR ${WORKDIR}
 
 COPY ./agent/agent.py ./agent/cgroup_watchers.py ${AGENTDIR}/
@@ -111,6 +112,13 @@ RUN addgroup -g "$GID" "$UNAME" && \
 
 COPY ./setup-prompt.sh /etc/profile.d/setup-prompt.sh
 COPY ./setup-ssh.sh ./common-user-limits.sh ./setup-venv.sh ./setup-caches.sh ${WORKDIR}/
+RUN sed -i 's/\r$//' \
+    ${WORKDIR}/start_server.sh \
+    ${WORKDIR}/setup-ssh.sh \
+    ${WORKDIR}/setup-venv.sh \
+    ${WORKDIR}/setup-caches.sh \
+    ${WORKDIR}/common-user-limits.sh \
+    /etc/profile.d/setup-prompt.sh
 
 RUN chown -R $UNAME:$UNAME ${WORKDIR} ${VENV_PATH} /home/notebooks /etc/ssh /etc/authorized_keys \
   && touch /etc/profile.d/notebooks-load-env.sh \
