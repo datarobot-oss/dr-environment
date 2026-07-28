@@ -1,0 +1,67 @@
+# Tool versions from recipe .datarobot/cli/versions.yaml (minimum-version fields).
+FROM user AS versions
+
+ARG UNAME=notebooks
+ARG CLI_VERSION={{ dr_version }}
+ARG UV_VERSION={{ uv_version }}
+ARG NODE_VERSION={{ node_version }}
+ARG GIT_MIN_VERSION={{ git_version }}
+ARG TASK_VERSION={{ task_version }}
+ARG PULUMI_VERSION={{ pulumi_version }}
+ARG OPENCODE_VERSION={{ opencode_version }}
+ARG COPIER_VERSION={{ copier_version }}
+ARG DATAROBOT_EARLY_ACCESS_VERSION={{ datarobot_early_access_version }}
+
+USER root
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# versions.yaml — git (minimum {{ git_version }}; Wolfi apk ships the current stable release)
+# hadolint ignore=DL3018,DL3059
+RUN apk add --no-cache git
+
+USER $UNAME
+ENV HOME=/home/notebooks \
+    PATH="/home/notebooks/.local/bin:$PATH"
+
+# versions.yaml — uv ({{ uv_version }})
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_VERSION="{{ uv_version }}" sh
+
+# copier ({{ copier_version }}; default when not listed in recipe)
+RUN uv tool install "copier=={{ copier_version }}"
+
+# datarobot_early_access ({{ datarobot_early_access_version }}; default when not listed in recipe)
+RUN uv tool install --force "datarobot_early_access[core]>={{ datarobot_early_access_version }}"
+
+# versions.yaml — task ({{ task_version }})
+RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /home/notebooks/.local/bin v{{ task_version }}
+
+# versions.yaml — node ({{ node_version }})
+RUN mkdir -p /home/notebooks/.local \
+    && curl -fsSL "https://nodejs.org/dist/{{ node_version }}/node-{{ node_version }}-linux-x64.tar.xz" \
+    | tar -xJ -C /home/notebooks/.local --strip-components=1
+
+# versions.yaml — dr CLI ({{ dr_version }})
+RUN curl -fsSL -o /tmp/dr.tar.gz \
+    "https://github.com/datarobot-oss/cli/releases/download/{{ dr_version }}/dr_{{ dr_version }}_Linux_x86_64.tar.gz" \
+    && mkdir -p /tmp/dr-extract /home/notebooks/.local/bin \
+    && tar -xzf /tmp/dr.tar.gz -C /tmp/dr-extract \
+    && install -m 755 /tmp/dr-extract/dr /home/notebooks/.local/bin/dr \
+    && rm -rf /tmp/dr-extract /tmp/dr.tar.gz
+
+RUN dr plugin install xp \
+    && dr plugin install opencode \
+    && dr plugin install assist
+
+# versions.yaml — pulumi ({{ pulumi_version }})
+RUN curl -fsSL https://get.pulumi.com | sh -s -- \
+    --version "$PULUMI_VERSION" \
+    --install-root /home/notebooks/.local
+
+RUN pulumi login --local
+
+# versions.yaml — opencode ({{ opencode_version }})
+RUN curl -fsSL -o /tmp/opencode-install.sh https://opencode.ai/install \
+    && bash /tmp/opencode-install.sh --no-modify-path -v "$OPENCODE_VERSION" \
+    && rm /tmp/opencode-install.sh
+
+ENV PATH="/home/notebooks/.local/bin:$PATH"

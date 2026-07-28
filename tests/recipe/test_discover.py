@@ -2,8 +2,8 @@ from pathlib import Path
 
 import yaml
 
-from dr_environment.discover import discover_components
-from dr_environment.models import ComponentStrategy
+from dr_environment.recipe.discover import discover_components
+from dr_environment.recipe.models import ComponentStrategy
 
 
 def test_discover_components_skips_internal_and_infra_only(tmp_path: Path) -> None:
@@ -29,3 +29,25 @@ def test_discover_components_skips_internal_and_infra_only(tmp_path: Path) -> No
     assert names == ["agent", "infra"]
     assert components[0].strategy == ComponentStrategy.DEFAULT
     assert components[1].strategy == ComponentStrategy.SKIP
+
+
+def test_discover_components_finds_nested_bin_manifest(tmp_path: Path) -> None:
+    recipe = tmp_path / "recipe"
+    recipe.mkdir()
+    docs_bin = recipe / "docs" / ".bin"
+    docs_bin.mkdir(parents=True)
+    (docs_bin / "pyproject.toml").write_text("[project]\nname='af-component-docs'\n")
+    (docs_bin / "uv.lock").write_text("")
+
+    taskfile = {
+        "version": "3",
+        "includes": {
+            "docs": {"taskfile": "./docs/Taskfile.yaml", "dir": "./docs"},
+        },
+    }
+    (recipe / "Taskfile.yml").write_text(yaml.dump(taskfile))
+
+    components = discover_components(recipe)
+    assert len(components) == 1
+    assert components[0].name == "docs"
+    assert components[0].strategy == ComponentStrategy.DEFAULT

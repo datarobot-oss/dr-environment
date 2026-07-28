@@ -4,16 +4,23 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dr_environment.layout import LOCAL_SHARED_PACKAGE
-from dr_environment.models import Component, Ecosystem
+from dr_environment.recipe.layout import LOCAL_SHARED_PACKAGE
+from dr_environment.recipe.models import Component, Ecosystem
 
-PREVIOUS_STAGE = "base"
+PREVIOUS_STAGE = "kernel"
 RUNTIME_USER = "notebooks"
 UV_CACHE = "/opt/cache/uv"
 NPM_CACHE = "/opt/cache/npm"
 GO_MOD_CACHE = "/opt/cache/go/pkg/mod"
 GO_BUILD_CACHE = "/opt/cache/go/build"
-PYTHON_PLATFORM = "x86_64-manylinux_2_28"
+GO_CACHE_ROOT = "/opt/cache/go"
+
+# Paths copied from the final cache stage into the offline runtime image.
+CACHE_COPY_PATHS = (
+    UV_CACHE,
+    NPM_CACHE,
+    GO_CACHE_ROOT,
+)
 
 
 def write_component_cache_fragment(
@@ -47,16 +54,18 @@ def write_component_cache_fragment(
 def write_component_cache_fragments(
     components: list[Component],
     docker_context: Path,
-) -> str:
-    """Write all default component cache fragments; return final stage name."""
+) -> str | None:
+    """Write all default component cache fragments; return final cache stage name."""
     previous = PREVIOUS_STAGE
+    wrote = False
     for component in components:
         if not component.manifests:
             continue
+        wrote = True
         previous = write_component_cache_fragment(
             component, docker_context, previous_stage=previous
         )
-    return previous
+    return previous if wrote else None
 
 
 def _copy_component_tree(component_name: str) -> str:
@@ -67,7 +76,7 @@ def _copy_component_tree(component_name: str) -> str:
 
 
 def _python_cache_lines(component_name: str) -> list[str]:
-    sync_flags = "--frozen --no-install-project"
+    sync_flags = "--frozen --no-install-project --all-extras --all-groups"
     if component_name != LOCAL_SHARED_PACKAGE:
         sync_flags += f" --no-install-package {LOCAL_SHARED_PACKAGE}"
 
@@ -77,7 +86,7 @@ def _python_cache_lines(component_name: str) -> list[str]:
         _copy_component_tree(component_name),
         f"WORKDIR /tmp/cache-work/{component_name}",
         f"RUN UV_PROJECT_ENVIRONMENT={warm_venv} \\",
-        f"    uv sync {sync_flags} --python-platform {PYTHON_PLATFORM} \\",
+        f"    uv sync {sync_flags} \\",
         "        --python ${VENV_PATH}/bin/python \\",
         f"    && rm -rf {warm_venv}",
     ]

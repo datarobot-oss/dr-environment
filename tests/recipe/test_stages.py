@@ -1,0 +1,64 @@
+from pathlib import Path
+
+from dr_environment.recipe.cache.stages import PREVIOUS_STAGE, write_component_cache_fragment
+from dr_environment.recipe.layout import LOCAL_SHARED_PACKAGE
+from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
+
+
+def test_cache_stages_chain_from_kernel() -> None:
+    assert PREVIOUS_STAGE == "kernel"
+
+
+def test_python_cache_fragment_uses_uv_sync(tmp_path: Path) -> None:
+    component = Component(
+        name="agent",
+        source_dir=tmp_path,
+        strategy=ComponentStrategy.DEFAULT,
+        fragment_order=10,
+        manifests=[
+            ManifestInfo(
+                ecosystem=Ecosystem.PYTHON,
+                manifest=tmp_path / "pyproject.toml",
+                lockfile=tmp_path / "uv.lock",
+            )
+        ],
+    )
+    docker_context = tmp_path / "ctx"
+    write_component_cache_fragment(component, docker_context, previous_stage="kernel")
+
+    content = (docker_context / "dockerfile.d" / "10-cache-agent.fragment").read_text()
+    assert content.startswith("FROM kernel AS cache-agent")
+    assert "COPY --chown=notebooks:notebooks components/agent/" in content
+    assert "uv sync" in content
+    assert "--all-extras" in content
+    assert "--all-groups" in content
+    assert "--python-platform" not in content
+    assert "uv pip install" not in content
+    assert "uv export" not in content
+    assert "USER root" not in content
+    assert "chown -R notebooks" not in content
+    assert f"--no-install-package {LOCAL_SHARED_PACKAGE}" in content
+    assert "rm -rf /tmp/uv-cache-warm-agent" in content
+
+
+def test_python_cache_fragment_core_skips_no_install_package(tmp_path: Path) -> None:
+    component = Component(
+        name=LOCAL_SHARED_PACKAGE,
+        source_dir=tmp_path,
+        strategy=ComponentStrategy.DEFAULT,
+        fragment_order=11,
+        manifests=[
+            ManifestInfo(
+                ecosystem=Ecosystem.PYTHON,
+                manifest=tmp_path / "pyproject.toml",
+                lockfile=tmp_path / "uv.lock",
+            )
+        ],
+    )
+    docker_context = tmp_path / "ctx"
+    write_component_cache_fragment(component, docker_context, previous_stage="cache-agent")
+
+    content = (docker_context / "dockerfile.d" / "11-cache-core.fragment").read_text()
+    assert "--all-extras" in content
+    assert "--all-groups" in content
+    assert f"--no-install-package {LOCAL_SHARED_PACKAGE}" not in content

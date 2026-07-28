@@ -11,9 +11,15 @@ fi
 IS_CODESPACE=$([[ "${WORKING_DIR}" == *"/storage"* ]] && echo true || echo false)
 IS_PYTHON_KERNEL=$([[ "${NOTEBOOKS_KERNEL}" == "python" ]] && echo true || echo false)
 
+if [[ $IS_CODESPACE == true ]]; then
+  export XDG_CACHE_HOME="${WORKING_DIR%/}/.cache"
+  export XDG_CONFIG_HOME="${WORKING_DIR%/}/.config"
+  export XDG_CONFIG_DIRS="${HOME}/.config"
+  export COLORTERM=truecolor
+fi
+
 if [[ $IS_CODESPACE == true && $IS_PYTHON_KERNEL == true && -z "${NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES}" ]]; then
   export POETRY_VIRTUALENVS_CREATE=false
-  export XDG_CACHE_HOME="${WORKING_DIR%/}/.cache"
   # Persistent HF artifact installation
   export HF_HOME="${WORKING_DIR%/}/.cache"
   export HF_HUB_CACHE="${WORKING_DIR%/}/.cache"
@@ -33,6 +39,29 @@ if [[ $IS_CODESPACE == true && $IS_PYTHON_KERNEL == true && -z "${NOTEBOOKS_NO_P
   KERNEL_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
   deactivate
 
+  # If a user has previously created a session with a different python version we need to figure that out
+  # If so we'll delete the existing venv to avoid errors and issues - for example when pip installing new packages
+  if [ -d "$USR_VENV" ]; then
+    [[ $VERBOSE_MODE == true ]] && echo "$USR_VENV does exist - will check python symlinks to see if they are broken..."
+    readarray -d '' VENV_SYMLINKS < <(find "$USR_VENV" -type l -print0)
+    python_symlinks_broken=false
+    for i in "${VENV_SYMLINKS[@]}"; do
+      if [[ "$i" == *"python"* ]]; then
+        [[ $VERBOSE_MODE == true ]] && echo "Checking symlink (${i})."
+        if [ ! -e "$i" ]; then
+          [[ $VERBOSE_MODE == true ]] && echo "Symlink (${i}) broken..."
+          python_symlinks_broken=true
+          break
+        fi
+      fi
+    done
+
+    if [[ $python_symlinks_broken == true ]]; then
+      [[ $VERBOSE_MODE == true ]] && echo "Python symlinks are broken - deleting existing virtual env..."
+      rm -rf "${USR_VENV}"
+    fi
+  fi
+
   python3 -m venv "${USR_VENV}"
   # shellcheck disable=SC1091
   source "${USR_VENV}/bin/activate"
@@ -41,6 +70,10 @@ if [[ $IS_CODESPACE == true && $IS_PYTHON_KERNEL == true && -z "${NOTEBOOKS_NO_P
   export PYTHONPATH="$USER_PACKAGES:$KERNEL_PACKAGES:$PYTHONPATH"
 else
   [[ $VERBOSE_MODE == true ]] && echo "Skipping user venv setup..."
-  # shellcheck disable=SC1091
-  source "$VENV_PATH/bin/activate"
+  # App Framework exec envs set NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES — components own their venvs;
+  # do not auto-activate kernel venv in SSH (would steer dr/task installs to the wrong environment).
+  if [[ -z "${NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES}" ]]; then
+    # shellcheck disable=SC1091
+    source "$VENV_PATH/bin/activate"
+  fi
 fi

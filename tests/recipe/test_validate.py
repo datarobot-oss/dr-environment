@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
-from dr_environment.models import Component, ComponentStrategy, Ecosystem
-from dr_environment.validate import ValidationError, inspect_component, validate_component
+from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem
+from dr_environment.recipe.validate import ValidationError, inspect_component, validate_component
 
 
 def _component(tmp_path: Path, name: str = "agent") -> Component:
@@ -27,7 +27,7 @@ def test_stale_uv_lock_detected_by_uv_lock_check(tmp_path: Path) -> None:
     (component.source_dir / "pyproject.toml").write_text("[project]\nname='x'\n")
     (component.source_dir / "uv.lock").write_text("lock")
 
-    with patch("dr_environment.validate.subprocess.run") as run:
+    with patch("dr_environment.recipe.validate.subprocess.run") as run:
         run.return_value.returncode = 1
         infos = inspect_component(component)
 

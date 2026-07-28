@@ -5,7 +5,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from dr_environment.models import (
+from dr_environment.recipe.manifests import find_manifest_file
+from dr_environment.recipe.models import (
     Component,
     ComponentStrategy,
     Ecosystem,
@@ -32,10 +33,10 @@ def inspect_component(component: Component) -> list[ManifestInfo]:
     """Detect manifests and lockfile status without raising."""
     manifests: list[ManifestInfo] = []
     for manifest_name, lock_name, ecosystem, _fix in MANIFEST_SPECS:
-        manifest = component.source_dir / manifest_name
-        if not manifest.is_file():
+        manifest = find_manifest_file(component.source_dir, manifest_name)
+        if manifest is None:
             continue
-        lockfile = component.source_dir / lock_name
+        lockfile = manifest.parent / lock_name
         info = ManifestInfo(
             ecosystem=ecosystem,
             manifest=manifest,
@@ -59,10 +60,10 @@ def validate_component(component: Component) -> None:
         return
 
     for manifest_name, lock_name, ecosystem, fix_cmd in MANIFEST_SPECS:
-        manifest = component.source_dir / manifest_name
-        if not manifest.is_file():
+        manifest = find_manifest_file(component.source_dir, manifest_name)
+        if manifest is None:
             continue
-        lockfile = component.source_dir / lock_name
+        lockfile = manifest.parent / lock_name
         status, message = _check_lockfile(manifest, lockfile, ecosystem)
         if status != LockfileStatus.OK:
             rel = component.source_dir.name

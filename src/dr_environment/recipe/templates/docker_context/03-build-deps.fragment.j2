@@ -1,0 +1,13 @@
+# Warm PEP 517 build backends into the shared uv wheel cache (after uv is installed).
+FROM versions AS build-deps
+
+ARG UNAME=notebooks
+ARG UV_CACHE_DIR=/opt/cache/uv
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+COPY --chown=${UNAME}:${UNAME} build-deps/build-requirements.txt /tmp/build-deps/build-requirements.txt
+RUN uv venv /tmp/build-deps-venv \
+    && UV_CACHE_DIR="${UV_CACHE_DIR}" uv pip install -r /tmp/build-deps/build-requirements.txt \
+        --python /tmp/build-deps-venv/bin/python \
+    && rm -rf /tmp/build-deps-venv

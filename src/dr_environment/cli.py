@@ -9,7 +9,7 @@ from pathlib import Path
 
 import click
 
-from dr_environment.build import build
+from dr_environment.recipe import build
 
 
 def _package_version() -> str:

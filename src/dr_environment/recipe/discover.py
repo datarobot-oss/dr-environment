@@ -6,7 +6,8 @@ from pathlib import Path
 
 import yaml
 
-from dr_environment.models import Component, ComponentStrategy
+from dr_environment.recipe.manifests import has_any_manifest
+from dr_environment.recipe.models import Component, ComponentStrategy
 
 TASKFILE_NAMES = ("Taskfile.yml", "Taskfile.yaml")
 
@@ -57,7 +58,7 @@ def discover_components(
         strategy = ComponentStrategy.DEFAULT
         if not skip_hooks and taskfile and has_environment_task(taskfile):
             strategy = ComponentStrategy.HOOK
-        elif not _has_any_manifest(component_dir):
+        elif not has_any_manifest(component_dir):
             strategy = ComponentStrategy.SKIP
 
         components.append(
@@ -71,10 +72,3 @@ def discover_components(
         order += 1
 
     return components
-
-
-def _has_any_manifest(directory: Path) -> bool:
-    return any(
-        (directory / marker).is_file()
-        for marker in ("pyproject.toml", "package.json", "go.mod")
-    )

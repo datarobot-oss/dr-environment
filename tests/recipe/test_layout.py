@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from dr_environment.cache.stages import write_component_cache_fragment
-from dr_environment.layout import LOCAL_SHARED_PACKAGE, copy_component, strip_local_shared_python_package
-from dr_environment.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
+from dr_environment.recipe.cache.stages import write_component_cache_fragment
+from dr_environment.recipe.layout import LOCAL_SHARED_PACKAGE, copy_component, strip_local_shared_python_package
+from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
 
 
 def test_strip_local_shared_python_package() -> None:
@@ -117,3 +117,30 @@ def test_copy_component_strips_core_from_pyproject(tmp_path: Path) -> None:
     copy_component(core_component, docker_context)
     core_copied = (docker_context / "components/core/pyproject.toml").read_text()
     assert 'name = "core"' in core_copied
+
+
+def test_copy_component_from_nested_bin_manifest(tmp_path: Path) -> None:
+    component_dir = tmp_path / "docs"
+    docs_bin = component_dir / ".bin"
+    docs_bin.mkdir(parents=True)
+    (docs_bin / "pyproject.toml").write_text('[project]\nname = "af-component-docs"\n', encoding="utf-8")
+    (docs_bin / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+
+    component = Component(
+        name="docs",
+        source_dir=component_dir,
+        strategy=ComponentStrategy.DEFAULT,
+        manifests=[
+            ManifestInfo(
+                ecosystem=Ecosystem.PYTHON,
+                manifest=docs_bin / "pyproject.toml",
+                lockfile=docs_bin / "uv.lock",
+            )
+        ],
+    )
+
+    docker_context = tmp_path / "ctx"
+    copy_component(component, docker_context)
+
+    assert (docker_context / "components/docs/pyproject.toml").is_file()
+    assert (docker_context / "components/docs/uv.lock").is_file()

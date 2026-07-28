@@ -1,0 +1,41 @@
+# Post-cache runtime and offline notebook environment.
+# Cache stages are throwaway intermediates; only warmed cache dirs are copied into the image.
+FROM kernel AS offline
+
+ARG GIT_COMMIT
+ARG VENV_PATH=/etc/system/kernel/.venv
+
+LABEL com.datarobot.repo-name="notebooks"
+LABEL com.datarobot.repo-sha=$GIT_COMMIT
+
+{% if cache_stage %}
+USER root
+{% for cache_path in cache_copy_paths %}
+COPY --from={{ cache_stage }} --chown=notebooks:notebooks {{ cache_path }} {{ cache_path }}
+{% endfor %}
+{% endif %}
+
+USER notebooks
+
+ENV HOME=/home/notebooks \
+    PATH="${VENV_PATH}/bin:/home/notebooks/.local/bin:$PATH" \
+    PYTHONPATH="/home/notebooks/.ipython/extensions:/home/notebooks/storage" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPYCACHEPREFIX=/tmp/.python_cache \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    VENV_PATH=${VENV_PATH} \
+    NOTEBOOKS_KERNEL="python" \
+    NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES=1 \
+    PULUMI_SKIP_UPDATE_CHECK=true \
+    UV_CACHE_DIR=/opt/cache/uv \
+    NPM_CONFIG_CACHE=/opt/cache/npm \
+    NPM_CONFIG_PREFER_OFFLINE=true \
+    GOMODCACHE=/opt/cache/go/pkg/mod \
+    GOCACHE=/opt/cache/go/build \
+    UV_OFFLINE=1 \
+    NPM_CONFIG_OFFLINE=true \
+    GOPROXY=off \
+    DEEPEVAL_HOME=/tmp/.deepeval \
+    DEEPEVAL_TELEMETRY_OPT_OUT="YES"

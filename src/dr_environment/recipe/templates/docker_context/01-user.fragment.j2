@@ -1,0 +1,22 @@
+# Runtime user and writable paths — must exist before versions.yaml tool installs.
+FROM base AS user
+
+ARG UNAME=notebooks
+ARG UID=10101
+ARG GID=10101
+ARG WORKDIR=/etc/system/kernel
+ARG VENV_PATH=${WORKDIR}/.venv
+ARG UV_CACHE_DIR=/opt/cache/uv
+
+USER root
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN addgroup -g "$GID" "$UNAME" && \
+    adduser -D -u "$UID" -G "$UNAME" -s /bin/bash "$UNAME"
+
+RUN mkdir -p "$WORKDIR" "${VENV_PATH}" /home/notebooks/.local \
+    "${UV_CACHE_DIR}" /opt/cache/npm /opt/cache/go/pkg/mod /opt/cache/go/build \
+  && chown -R "$UNAME:$UNAME" "$WORKDIR" /home/notebooks "${UV_CACHE_DIR}" /opt/cache
+
+USER $UNAME
+ENV HOME=/home/notebooks

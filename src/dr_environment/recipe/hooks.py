@@ -6,8 +6,8 @@ import os
 import subprocess
 from pathlib import Path
 
-from dr_environment.discover import find_taskfile
-from dr_environment.models import Component
+from dr_environment.recipe.discover import find_taskfile
+from dr_environment.recipe.models import Component
 
 
 def run_environment_hook(component: Component, docker_context: Path) -> None:

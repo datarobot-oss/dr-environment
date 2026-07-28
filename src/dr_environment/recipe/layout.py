@@ -6,7 +6,7 @@ import re
 import shutil
 from pathlib import Path
 
-from dr_environment.models import Component, ComponentStrategy, Ecosystem
+from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem
 
 # Recipe convention: sibling `core/` is a symlinked local shared Python package.
 LOCAL_SHARED_PACKAGE = "core"
@@ -65,8 +65,9 @@ def copy_component(component: Component, docker_context: Path) -> Path:
     dest.mkdir(parents=True, exist_ok=True)
 
     for info in component.manifests:
+        manifest_dir = info.manifest.parent
         for filename in COPY_MAP[info.ecosystem]:
-            src = component.source_dir / filename
+            src = manifest_dir / filename
             if not src.is_file():
                 continue
             dest_file = dest / filename

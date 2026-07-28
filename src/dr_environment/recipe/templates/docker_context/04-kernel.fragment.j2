@@ -1,0 +1,58 @@
+# Jupyter kernel gateway runtime — venv, entrypoint assets, and notebook env.
+FROM build-deps AS kernel
+
+ARG UNAME=notebooks
+ARG WORKDIR=/etc/system/kernel
+ARG AGENTDIR=/etc/system/kernel/agent
+ARG VENV_PATH=${WORKDIR}/.venv
+
+USER root
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ENV VENV_PATH=${VENV_PATH}
+
+ENV PATH="$VENV_PATH/bin:/home/notebooks/.local/bin:$PATH"
+
+WORKDIR ${WORKDIR}
+
+RUN uv venv "${VENV_PATH}"
+COPY kernel/requirements.txt /tmp/kernel/requirements.txt
+RUN uv pip install --no-cache -r /tmp/kernel/requirements.txt --python "${VENV_PATH}/bin/python"
+
+COPY kernel/agent/agent.py kernel/agent/cgroup_watchers.py ${AGENTDIR}/
+COPY kernel/jupyter_kernel_gateway_config.py ${WORKDIR}/jupyter_kernel_gateway_config.py
+COPY kernel/start_server_codespaces.sh ${WORKDIR}/start_server.sh
+RUN chmod a+x ${WORKDIR}/start_server.sh
+COPY kernel/kernel.json "${VENV_PATH}/share/jupyter/kernels/python3/"
+
+COPY kernel/ipython_config.py /etc/ipython/
+COPY kernel/extensions /etc/ipython/extensions
+
+COPY kernel/sshd_config /etc/ssh/
+RUN cp -a /etc/ssh /etc/ssh.cache
+RUN mkdir /etc/authorized_keys
+
+COPY kernel/setup-prompt.sh /etc/profile.d/setup-prompt.sh
+COPY kernel/notebooks-path.sh /etc/profile.d/notebooks-path.sh
+COPY kernel/setup-ssh.sh kernel/common-user-limits.sh kernel/setup-venv.sh kernel/setup-caches.sh ${WORKDIR}/
+RUN sed -i 's/\r$//' \
+    ${WORKDIR}/start_server.sh \
+    ${WORKDIR}/setup-ssh.sh \
+    ${WORKDIR}/setup-venv.sh \
+    ${WORKDIR}/setup-caches.sh \
+    ${WORKDIR}/common-user-limits.sh \
+    /etc/profile.d/setup-prompt.sh \
+    /etc/profile.d/notebooks-path.sh
+
+# notebooks user must own profile.d stubs so setup-ssh.sh can snapshot runtime env at start.
+RUN chown -R $UNAME:$UNAME ${WORKDIR} ${VENV_PATH} /home/notebooks /etc/ssh /etc/authorized_keys \
+    && touch /etc/profile.d/notebooks-load-env.sh \
+    && chown $UNAME:$UNAME /etc/profile.d/notebooks-load-env.sh \
+    && touch /etc/profile.d/bash-profile-load.sh \
+    && chown $UNAME:$UNAME /etc/profile.d/bash-profile-load.sh
+
+USER $UNAME
+
+EXPOSE 8888
+EXPOSE 8889
+EXPOSE 22

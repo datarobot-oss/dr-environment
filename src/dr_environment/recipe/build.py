@@ -8,19 +8,22 @@ from pathlib import Path
 
 import yaml
 
-from dr_environment.cache.stages import write_component_cache_fragments
-from dr_environment.discover import discover_components
-from dr_environment.hooks import run_environment_hook
-from dr_environment.layout import layout_components
-from dr_environment.models import Component, ComponentStrategy
-from dr_environment.render import (
+from dr_environment.recipe.cache.stages import write_component_cache_fragments
+from dr_environment.recipe.discover import discover_components
+from dr_environment.recipe.hooks import run_environment_hook
+from dr_environment.recipe.layout import layout_components
+from dr_environment.recipe.models import Component, ComponentStrategy
+from dr_environment.recipe.render import (
     assemble_dockerfile,
-    copy_static_template,
+    copy_fragment_assets,
     render_base_fragment,
-    render_kernel_fragment,
-    template_root,
+    render_build_deps_fragment,
+    render_offline_fragment,
+    render_kernel_setup_fragment,
+    render_user_fragment,
+    render_versions_fragment,
 )
-from dr_environment.validate import inspect_component, validate_all
+from dr_environment.recipe.validate import inspect_component, validate_all
 
 
 def load_versions(versions_file: Path) -> dict:
@@ -49,10 +52,12 @@ def build(
     docker_context.mkdir(parents=True)
 
     versions = load_versions(versions_file)
-    copy_static_template(docker_context)
-    render_base_fragment(docker_context, versions)
-
-    dockerfile_d = docker_context / "dockerfile.d"
+    copy_fragment_assets(docker_context)
+    render_base_fragment(docker_context)
+    render_user_fragment(docker_context)
+    render_versions_fragment(docker_context, versions)
+    render_build_deps_fragment(docker_context)
+    render_kernel_setup_fragment(docker_context)
 
     for component in components:
         if component.strategy == ComponentStrategy.HOOK:
@@ -66,11 +71,9 @@ def build(
         for c in components
         if c.strategy == ComponentStrategy.DEFAULT and c.manifests
     ]
-    final_stage = write_component_cache_fragments(active, docker_context)
+    cache_stage = write_component_cache_fragments(active, docker_context)
 
-    render_kernel_fragment(
-        docker_context, final_stage=final_stage or "base", versions=versions
-    )
+    render_offline_fragment(docker_context, cache_stage=cache_stage)
     assemble_dockerfile(docker_context)
 
     if tarball:
