@@ -92,7 +92,7 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     assert "opencode.ai/install" in content
     assert "OPENCODE_VERSION=1.17.11" in content
     assert "uv tool install \"copier==9.17.0\"" in content
-    assert "datarobot_early_access[core]>=3.17" in content
+    assert "datarobot[core]>=3.18" in content
     assert "plugin install xp" in content
     assert "pulumi login --local" in content
     assert "PULUMI_SKIP_UPDATE_CHECK" not in content
@@ -174,4 +174,4 @@ def test_parse_tool_versions_defaults() -> None:
     assert tools.pulumi == "3.163.0"
     assert tools.opencode == "1.17.11"
     assert tools.copier == "9.17.0"
-    assert tools.datarobot_early_access == "3.17"
+    assert tools.datarobot == "3.18"
