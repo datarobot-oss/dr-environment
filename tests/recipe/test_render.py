@@ -93,6 +93,9 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     assert "OPENCODE_VERSION=1.17.11" in content
     assert "uv tool install \"copier==9.17.0\"" in content
     assert "datarobot[core]>=3.18" in content
+    assert "pulumi plugin install resource datarobot \"$PULUMI_DATAROBOT_VERSION\"" in content
+    assert "--server github://api.github.com/datarobot-community/pulumi-datarobot" in content
+    assert "PULUMI_DATAROBOT_VERSION=v0.10.43" in content
     assert "plugin install xp" in content
     assert "pulumi login --local" in content
     assert "PULUMI_SKIP_UPDATE_CHECK" not in content
@@ -175,3 +178,4 @@ def test_parse_tool_versions_defaults() -> None:
     assert tools.opencode == "1.17.11"
     assert tools.copier == "9.17.0"
     assert tools.datarobot == "3.18"
+    assert tools.pulumi_datarobot == "v0.10.43"
