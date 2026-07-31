@@ -12,6 +12,7 @@ ARG OPENCODE_VERSION={{ opencode_version }}
 ARG COPIER_VERSION={{ copier_version }}
 ARG DATAROBOT_VERSION={{ datarobot_version }}
 ARG PULUMI_DATAROBOT_VERSION={{ pulumi_datarobot_version }}
+ARG PULUMI_COMMAND_VERSION={{ pulumi_command_version }}
 
 USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -63,6 +64,9 @@ RUN pulumi login --local
 # pulumi-datarobot provider ({{ pulumi_datarobot_version }}; not in versions.yaml, default when not listed in recipe)
 RUN pulumi plugin install resource datarobot "$PULUMI_DATAROBOT_VERSION" \
     --server github://api.github.com/datarobot-community/pulumi-datarobot
+
+# pulumi command provider ({{ pulumi_command_version }}; not in versions.yaml, default when not listed in recipe)
+RUN pulumi plugin install resource command "$PULUMI_COMMAND_VERSION"
 
 # versions.yaml — opencode ({{ opencode_version }})
 RUN curl -fsSL -o /tmp/opencode-install.sh https://opencode.ai/install \

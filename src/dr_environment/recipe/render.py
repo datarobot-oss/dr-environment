@@ -68,6 +68,7 @@ def render_versions_fragment(docker_context: Path, versions: dict) -> None:
         copier_version=tools.copier,
         datarobot_version=tools.datarobot,
         pulumi_datarobot_version=tools.pulumi_datarobot,
+        pulumi_command_version=tools.pulumi_command,
     )
     dockerfile_d = docker_context / "dockerfile.d"
     (dockerfile_d / "02-versions.fragment").write_text(content, encoding="utf-8")

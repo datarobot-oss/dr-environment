@@ -19,6 +19,7 @@ class ToolVersions:
     copier: str
     datarobot: str
     pulumi_datarobot: str
+    pulumi_command: str
 
 
 _DEFAULTS = {
@@ -32,6 +33,7 @@ _DEFAULTS = {
     "copier": "9.17.0",
     "datarobot": "3.18",
     "pulumi_datarobot": "0.10.43",
+    "pulumi_command": "1.2.1",
 }
 
 
@@ -56,4 +58,5 @@ def parse_tool_versions(versions: dict) -> ToolVersions:
         copier=_minimum_version(versions, "copier"),
         datarobot=_minimum_version(versions, "datarobot"),
         pulumi_datarobot=_release_tag(_minimum_version(versions, "pulumi_datarobot")),
+        pulumi_command=_release_tag(_minimum_version(versions, "pulumi_command")),
     )
