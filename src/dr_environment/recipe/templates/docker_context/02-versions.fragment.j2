@@ -54,6 +54,19 @@ RUN dr plugin install xp \
     && dr plugin install opencode \
     && dr plugin install assist
 
+# Pre-create the Agent Assist venv under the name dr-assist derives at runtime (the
+# wheel basename without .whl). Agent Assist builds this venv on first launch, which
+# fails in the offline image; baking it here lets it start.
+# ~/.cache already exists root-owned from an earlier build step, so hand it to the
+# runtime user before creating the venv inside it.
+USER root
+RUN install -d -o "$UNAME" -g "$UNAME" /home/notebooks/.cache
+USER $UNAME
+RUN wheel=$(echo /home/notebooks/.config/datarobot/plugins/assist/dr_assist-*-cp311-cp311-manylinux*_x86_64*.whl) \
+    && venv_dir="/home/notebooks/.cache/dr-assist-venv-$(basename "$wheel" .whl)" \
+    && uv venv --python 3.11 "$venv_dir" \
+    && uv pip install --python "$venv_dir/bin/python" "$wheel"
+
 # versions.yaml — pulumi ({{ pulumi_version }})
 RUN curl -fsSL https://get.pulumi.com | sh -s -- \
     --version "$PULUMI_VERSION" \
