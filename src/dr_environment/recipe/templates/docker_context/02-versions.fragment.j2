@@ -22,14 +22,30 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apk add --no-cache git
 
 USER $UNAME
+# UV_CACHE_DIR points at the baked offline cache so tools installed here (copier,
+# datarobot) and their wheels land where the runtime (UV_OFFLINE=1) looks for them.
+# UV_PYTHON_PREFERENCE=system keeps every uv operation on the image's system CPython.
+# The Agent Assist step below installs a managed CPython 3.11; without this, uv would
+# prefer that managed interpreter at runtime, so offline `uvx copier` (run by
+# `dr start`) would resolve against 3.11 — whose wheels are not cached — and fail.
+# System Python is the interpreter the offline cache was populated for.
 ENV HOME=/home/notebooks \
-    PATH="/home/notebooks/.local/bin:$PATH"
+    PATH="/home/notebooks/.local/bin:$PATH" \
+    UV_CACHE_DIR=/opt/cache/uv \
+    UV_PYTHON_PREFERENCE=system
 
 # versions.yaml — uv ({{ uv_version }})
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_VERSION="{{ uv_version }}" sh
 
 # copier ({{ copier_version }}; default when not listed in recipe)
 RUN uv tool install "copier=={{ copier_version }}"
+
+# Warm the `uvx copier` ephemeral environment so `dr start` (which runs bare
+# `uvx copier recopy`) can resolve copier and its whole dependency tree from the
+# baked cache offline. Invoked bare to match `dr start`, and — thanks to
+# UV_PYTHON_PREFERENCE=system above — resolved against the same system CPython the
+# runtime uses.
+RUN uvx copier --version
 
 # datarobot ({{ datarobot_version }}; default when not listed in recipe)
 RUN uv tool install --force "datarobot[core]>={{ datarobot_version }}"

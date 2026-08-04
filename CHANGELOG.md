@@ -5,6 +5,7 @@
 ### Fixed
 
 - Pre-create the Agent Assist plugin venv at build time so Agent Assist launches in the offline image; it otherwise fails building the venv on first launch.
+- Pin uv to the system CPython (`UV_PYTHON_PREFERENCE=system`) and pre-warm `uvx copier` into the baked offline cache so `dr start` (which runs `uvx copier recopy`) resolves copier offline. The Agent Assist step installs a managed CPython 3.11 that uv would otherwise prefer at runtime, making offline `uvx copier` resolve against an interpreter with no cached wheels and fail.
 
 ## Version 0.1.0 (2026-07-23)
 
