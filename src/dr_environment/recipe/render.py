@@ -37,7 +37,7 @@ def render_base_fragment(docker_context: Path) -> None:
     template = env.get_template("00-base.fragment.j2")
     content = template.render(
         uv_cache_dir="/opt/cache/uv",
-        python_version="3.12",
+        python_version="3.11",
         target_platform="linux/amd64",
     )
     dockerfile_d = docker_context / "dockerfile.d"

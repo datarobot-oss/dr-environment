@@ -57,17 +57,9 @@ if [ -f "$SCRIPT_DIR/workflow.yaml" ]; then
 	# Get the number of workers from the runtime parameter (defaults to 1)
 	CUSTOM_MODEL_WORKERS=$(python -c "from datarobot.core import getenv; print(int(getenv('CUSTOM_MODEL_WORKERS', '1')))")
 
-	# Default to the single-process uvicorn path (no gunicorn). NAT's gunicorn workers run on
-	# a uvloop event loop, which NAT's nest_asyncio patching cannot handle: each worker crashes
-	# on boot with "Can't patch loop of type uvloop.Loop" and gunicorn respawns it forever. The
-	# single-worker path serves via `await uvicorn.Server(...).serve()` on a standard asyncio
-	# loop, which nest_asyncio patches cleanly. Set DRAGENT_USE_GUNICORN=true to force
-	# multi-worker gunicorn where the dependency stack supports it.
-	USE_GUNICORN="${DRAGENT_USE_GUNICORN:-false}"
-
-	echo "Executing command: nat dragent serve --config_file $SCRIPT_DIR/workflow.yaml --port 8080 --use_gunicorn $USE_GUNICORN --workers $CUSTOM_MODEL_WORKERS $ROOT_PATH_ARG"
+	echo "Executing command: nat dragent serve --config_file $SCRIPT_DIR/workflow.yaml --port 8080 --use_gunicorn true --workers $CUSTOM_MODEL_WORKERS $ROOT_PATH_ARG"
 	echo
-	exec nat dragent serve --config_file $SCRIPT_DIR/workflow.yaml --host 0.0.0.0 --port 8080 --use_gunicorn "$USE_GUNICORN" --workers $CUSTOM_MODEL_WORKERS $ROOT_PATH_ARG
+	exec nat dragent serve --config_file $SCRIPT_DIR/workflow.yaml --host 0.0.0.0 --port 8080 --use_gunicorn true --workers $CUSTOM_MODEL_WORKERS $ROOT_PATH_ARG
 fi
 
 # -----------------------------------------------------------------------------
