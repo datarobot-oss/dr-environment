@@ -1,3 +1,15 @@
+{% if cache_stage %}
+# The deployed model runs as uid 1000 (see the start_server.sh block below) and uses the
+# baked uv cache as uv's cache dir; uv opens cache files for writing at startup, so they
+# must be writable by any uid. Do the chmod in a throwaway stage and let the plain COPY
+# below carry the modes into the image: `COPY --chmod` would need BuildKit, which the
+# platform image builder does not enable, and a `RUN chmod -R` in the final stage would
+# copy the whole multi-GB cache into a new layer.
+FROM {{ cache_stage }} AS cache-perms
+USER root
+RUN chmod -R a+rwX /opt/cache/uv
+{% endif %}
+
 # Post-cache runtime and offline notebook environment.
 # Cache stages are throwaway intermediates; only warmed cache dirs are copied into the image.
 FROM kernel AS offline
@@ -12,9 +24,7 @@ LABEL com.datarobot.repo-sha=$GIT_COMMIT
 USER root
 {% for cache_path in cache_copy_paths %}
 {% if cache_path.endswith('/uv') %}
-# The deployed model (uid 1000, see the start_server.sh block below) uses this baked cache
-# as uv's cache dir and uv opens it for writing at startup, so make it writable by any uid.
-COPY --from={{ cache_stage }} --chown=notebooks:notebooks --chmod=0777 {{ cache_path }} {{ cache_path }}
+COPY --from=cache-perms --chown=notebooks:notebooks {{ cache_path }} {{ cache_path }}
 {% else %}
 COPY --from={{ cache_stage }} --chown=notebooks:notebooks {{ cache_path }} {{ cache_path }}
 {% endif %}
