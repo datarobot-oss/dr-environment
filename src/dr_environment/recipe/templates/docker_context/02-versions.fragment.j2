@@ -21,6 +21,10 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # hadolint ignore=DL3018,DL3059
 RUN apk add --no-cache git
 
+# TEMPORARY WORKAROUND: bundle the GitHub CLI. Remove once it is no longer needed.
+# hadolint ignore=DL3018,DL3059
+RUN apk add --no-cache gh
+
 USER $UNAME
 # UV_CACHE_DIR points at the baked offline cache so tools installed here (copier,
 # datarobot) and their wheels land where the runtime (UV_OFFLINE=1) looks for them.

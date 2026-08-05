@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Bundle the GitHub CLI (`gh`) via Wolfi apk. Temporary workaround — remove once no longer needed.
+
 ### Fixed
 
 - Pre-create the Agent Assist plugin venv at build time so Agent Assist launches in the offline image; it otherwise fails building the venv on first launch.
