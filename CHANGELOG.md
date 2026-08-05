@@ -4,6 +4,7 @@
 
 ### Added
 
+- Host deployed agent and MCP custom models. DataRobot builds each deployed model FROM this image and runs `/opt/code/start_server.sh`; provide that entrypoint (a dispatcher: `workflow.yaml` → agent via `nat dragent serve`, `app/` → MCP server via `python -m app.main`), matching the stock GenAI Agents execution environment. Without it the model image build failed at `chmod /opt/code/start_server.sh`. For air-gapped deployments, models install their dependencies from the baked cache: uv's cache stays enabled under `UV_OFFLINE=1` (instead of the default reproducible-but-online `UV_NO_CACHE`), `/opt/venv` is pre-created writable, and the baked uv cache is made writable by the model's runtime user (uid 1000).
 - Bundle the GitHub CLI (`gh`) via Wolfi apk. Temporary workaround — remove once no longer needed.
 
 ### Fixed
