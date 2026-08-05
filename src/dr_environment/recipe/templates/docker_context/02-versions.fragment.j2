@@ -28,11 +28,12 @@ RUN apk add --no-cache gh
 USER $UNAME
 # UV_CACHE_DIR points at the baked offline cache so tools installed here (copier,
 # datarobot) and their wheels land where the runtime (UV_OFFLINE=1) looks for them.
-# UV_PYTHON_PREFERENCE=system keeps every uv operation on the image's system CPython.
-# The Agent Assist step below installs a managed CPython 3.11; without this, uv would
-# prefer that managed interpreter at runtime, so offline `uvx copier` (run by
-# `dr start`) would resolve against 3.11 — whose wheels are not cached — and fail.
-# System Python is the interpreter the offline cache was populated for.
+# UV_PYTHON_PREFERENCE=system keeps every uv operation on the image's system CPython
+# (3.11). Otherwise, under uv's default `managed` preference, steps that request Python
+# 3.11 — the Agent Assist venv below and the ephemeral `uvx copier` resolve run by
+# `dr start` — would each download a separate managed CPython instead of reusing the
+# system one, adding an unneeded interpreter and (offline) resolving against uncached
+# wheels. System Python is the interpreter the offline cache was populated for.
 ENV HOME=/home/notebooks \
     PATH="/home/notebooks/.local/bin:$PATH" \
     UV_CACHE_DIR=/opt/cache/uv \
@@ -76,7 +77,8 @@ RUN dr plugin install xp \
 
 # Pre-create the Agent Assist venv under the name dr-assist derives at runtime (the
 # wheel basename without .whl). Agent Assist builds this venv on first launch, which
-# fails in the offline image; baking it here lets it start.
+# fails in the offline image; baking it here lets it start. `uv venv` uses the system
+# interpreter (3.11), which matches the plugin's cp311 wheel.
 # ~/.cache already exists root-owned from an earlier build step, so hand it to the
 # runtime user before creating the venv inside it.
 USER root
@@ -84,7 +86,7 @@ RUN install -d -o "$UNAME" -g "$UNAME" /home/notebooks/.cache
 USER $UNAME
 RUN wheel=$(echo /home/notebooks/.config/datarobot/plugins/assist/dr_assist-*-cp311-cp311-manylinux*_x86_64*.whl) \
     && venv_dir="/home/notebooks/.cache/dr-assist-venv-$(basename "$wheel" .whl)" \
-    && uv venv --python 3.11 "$venv_dir" \
+    && uv venv "$venv_dir" \
     && uv pip install --python "$venv_dir/bin/python" "$wheel"
 
 # versions.yaml — pulumi ({{ pulumi_version }})
