@@ -25,6 +25,10 @@ USER root
 {% for cache_path in cache_copy_paths %}
 {% if cache_path.endswith('/uv') %}
 COPY --from=cache-perms --chown=notebooks:notebooks {{ cache_path }} {{ cache_path }}
+# Classic `COPY --from` resets the copied top-level dir to 0755 (nested modes are kept), so
+# restore 0777 on the cache root — one inode — letting the uid-1000 model create its lock
+# and temp files there.
+RUN chmod 0777 {{ cache_path }}
 {% else %}
 COPY --from={{ cache_stage }} --chown=notebooks:notebooks {{ cache_path }} {{ cache_path }}
 {% endif %}
