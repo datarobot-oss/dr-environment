@@ -14,12 +14,18 @@ NPM_CACHE = "/opt/cache/npm"
 GO_MOD_CACHE = "/opt/cache/go/pkg/mod"
 GO_BUILD_CACHE = "/opt/cache/go/build"
 GO_CACHE_ROOT = "/opt/cache/go"
+# Flat find-links directory of the exact published Python wheels/sdists. Kept separate from
+# the uv cache: DataRobot builds the FastAPI custom application FROM this image with
+# `uv pip install --system --no-cache`, and `--no-cache` makes uv ignore UV_CACHE. uv still
+# honours find-links, so the offline stage points UV_FIND_LINKS here (see _python_cache_lines).
+WHEELHOUSE = "/opt/wheelhouse"
 
 # Paths copied from the final cache stage into the offline runtime image.
 CACHE_COPY_PATHS = (
     UV_CACHE,
     NPM_CACHE,
     GO_CACHE_ROOT,
+    WHEELHOUSE,
 )
 
 
@@ -81,14 +87,28 @@ def _python_cache_lines(component_name: str) -> list[str]:
         sync_flags += f" --no-install-package {LOCAL_SHARED_PACKAGE}"
 
     warm_venv = f"/tmp/uv-cache-warm-{component_name}"
+    wheelhouse_req = f"/tmp/wheelhouse-req-{component_name}.txt"
     return [
         f"ENV UV_CACHE_DIR={UV_CACHE}",
         _copy_component_tree(component_name),
         f"WORKDIR /tmp/cache-work/{component_name}",
+        # Warm the uv cache; agent/MCP custom models install from it at runtime with
+        # `uv sync` (see the start_server.sh block in the offline stage).
         f"RUN UV_PROJECT_ENVIRONMENT={warm_venv} \\",
         f"    uv sync {sync_flags} \\",
-        "        --python ${VENV_PATH}/bin/python \\",
-        f"    && rm -rf {warm_venv}",
+        "        --python ${VENV_PATH}/bin/python",
+        # Mirror the same dependencies into the shared wheelhouse (see WHEELHOUSE above for
+        # why DataRobot's `--no-cache` app build cannot read the uv cache). `pip download`
+        # fetches the exact published artifacts, so their hashes match the ones `uv export`
+        # writes into the requirements file at deploy time; rebuilt wheels would not. Export
+        # exactly what DataRobot installs: production dependencies, project and workspace
+        # members excluded.
+        f"RUN uv pip install --no-cache --python {warm_venv}/bin/python pip \\",
+        f"    && uv export --frozen --no-dev --no-emit-local --no-emit-project \\",
+        f"        -o {wheelhouse_req} \\",
+        f"    && {warm_venv}/bin/python -m pip download --no-deps --no-cache-dir \\",
+        f"        -r {wheelhouse_req} --dest {WHEELHOUSE} \\",
+        f"    && rm -rf {warm_venv} {wheelhouse_req}",
     ]
 
 
