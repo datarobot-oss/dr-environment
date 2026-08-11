@@ -6,7 +6,6 @@
 
 - Host deployed agent and MCP custom models. DataRobot builds each deployed model FROM this image and runs `/opt/code/start_server.sh`; provide that entrypoint (a dispatcher: `workflow.yaml` → agent via `nat dragent serve`, `app/` → MCP server via `python -m app.main`), matching the stock GenAI Agents execution environment. Without it the model image build failed at `chmod /opt/code/start_server.sh`. For air-gapped deployments, models install their dependencies from the baked cache: uv's cache stays enabled under `UV_OFFLINE=1` (instead of the default reproducible-but-online `UV_NO_CACHE`), `/opt/venv` is pre-created writable, and the baked uv cache is made writable by the model's runtime user (uid 1000).
 - Bundle the GitHub CLI (`gh`) via Wolfi apk. Temporary workaround — remove once no longer needed.
-- Bake a find-links wheelhouse at `/opt/wheelhouse` (the exact published wheels/sdists of every Python component) and point `UV_FIND_LINKS` at it. DataRobot builds the FastAPI custom application FROM this image with `uv pip install --system --no-cache`, and `--no-cache` makes uv ignore the baked uv cache — so in an air-gapped install the build had no wheels to read and failed (e.g. `ag-ui-protocol was not found in the cache`). `--no-cache` does not disable find-links, and `pip download` fetches the exact published artifacts so their hashes match the deploy-time requirements.
 
 ### Fixed
 
