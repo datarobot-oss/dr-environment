@@ -5,9 +5,7 @@ Build Codespace-ready execution environment Docker contexts for DataRobot App Fr
 ## Install
 
 ```bash
-uv tool install .
-# or
-uv pip install -e .
+uv tool install -e .
 ```
 
 ## Make an execution environment
