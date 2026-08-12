@@ -43,7 +43,8 @@ COPY --from={{ cache_stage }} --chown=notebooks:notebooks {{ cache_path }} {{ ca
 # the baked uv cache it installs from, above) must be writable by any uid.
 USER root
 COPY kernel/start_server_custom_model.sh /opt/code/start_server.sh
-RUN chmod a+x /opt/code/start_server.sh \
+RUN sed -i 's/\r$//' /opt/code/start_server.sh \
+    && chmod a+x /opt/code/start_server.sh \
     && mkdir -p /opt/venv && chmod a+rwx /opt/venv
 
 USER notebooks

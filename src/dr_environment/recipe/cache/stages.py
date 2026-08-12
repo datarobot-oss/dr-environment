@@ -93,18 +93,19 @@ def _python_cache_lines(component_name: str) -> list[str]:
         _copy_component_tree(component_name),
         f"WORKDIR /tmp/cache-work/{component_name}",
         # Warm the uv cache; agent/MCP custom models install from it at runtime with
-        # `uv sync` (see the start_server.sh block in the offline stage).
-        f"RUN UV_PROJECT_ENVIRONMENT={warm_venv} \\",
-        f"    uv sync {sync_flags} \\",
-        "        --python ${VENV_PATH}/bin/python",
-        # Mirror the same dependencies into the shared wheelhouse (see WHEELHOUSE above for
-        # why DataRobot's `--no-cache` app build cannot read the uv cache). `pip download`
+        # `uv sync` (see the start_server.sh block in the offline stage). Mirror the same
+        # dependencies into the shared wheelhouse in the same RUN (see WHEELHOUSE above for
+        # why DataRobot's `--no-cache` app build cannot read the uv cache): `pip download`
         # fetches the exact published artifacts, so their hashes match the ones `uv export`
         # writes into the requirements file at deploy time; rebuilt wheels would not. Export
         # exactly what DataRobot installs: production dependencies, project and workspace
-        # members excluded.
-        f"RUN uv pip install --no-cache --python {warm_venv}/bin/python pip \\",
-        f"    && uv export --frozen --no-dev --no-emit-local --no-emit-project \\",
+        # members excluded. warm_venv must be removed in this same RUN — splitting the sync
+        # and the rm across RUNs would bake the multi-GB venv into the earlier layer for good.
+        f"RUN UV_PROJECT_ENVIRONMENT={warm_venv} \\",
+        f"    uv sync {sync_flags} \\",
+        "        --python ${VENV_PATH}/bin/python \\",
+        f"    && uv pip install --no-cache --python {warm_venv}/bin/python pip \\",
+        "    && uv export --frozen --no-dev --no-emit-local --no-emit-project \\",
         f"        -o {wheelhouse_req} \\",
         f"    && {warm_venv}/bin/python -m pip download --no-deps --no-cache-dir \\",
         f"        -r {wheelhouse_req} --dest {WHEELHOUSE} \\",
