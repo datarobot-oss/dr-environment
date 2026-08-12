@@ -16,7 +16,9 @@ RUN addgroup -g "$GID" "$UNAME" && \
 
 RUN mkdir -p "$WORKDIR" "${VENV_PATH}" /home/notebooks/.local \
     "${UV_CACHE_DIR}" /opt/cache/npm /opt/cache/go/pkg/mod /opt/cache/go/build \
-  && chown -R "$UNAME:$UNAME" "$WORKDIR" /home/notebooks "${UV_CACHE_DIR}" /opt/cache
+    /opt/wheelhouse \
+  && chown -R "$UNAME:$UNAME" "$WORKDIR" /home/notebooks "${UV_CACHE_DIR}" /opt/cache \
+    /opt/wheelhouse
 
 USER $UNAME
 ENV HOME=/home/notebooks

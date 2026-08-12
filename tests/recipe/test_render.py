@@ -151,9 +151,13 @@ def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) 
 
     content = (docker_context / "dockerfile.d" / "99-offline.fragment").read_text()
     assert "FROM kernel AS offline" in content
-    assert "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/uv /opt/cache/uv" in content
+    # The uv cache is copied from the cache-perms stage (its root is chmod 0777 there so the
+    # uid-1000 model can write lock/temp files); the rest come straight from the cache stage.
+    assert "COPY --from=cache-perms --chown=notebooks:notebooks /opt/cache/uv /opt/cache/uv" in content
     assert "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/npm /opt/cache/npm" in content
     assert "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/go /opt/cache/go" in content
+    assert "COPY --from=cache-agent --chown=notebooks:notebooks /opt/wheelhouse /opt/wheelhouse" in content
+    assert "UV_FIND_LINKS=/opt/wheelhouse" in content
     assert "UV_OFFLINE=1" in content
     assert "NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES=1" in content
     assert "DEEPEVAL_HOME=/tmp/.deepeval" in content

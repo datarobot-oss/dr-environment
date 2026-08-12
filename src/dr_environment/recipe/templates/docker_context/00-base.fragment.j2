@@ -23,7 +23,7 @@ ENV PATH="${PATH}:/sbin"
 RUN apk update && apk upgrade
 
 # Wolfi layers below mirror datarobot-user-models/python313_notebook — Chainguard splits
-# Python into many apk packages; `python-3.12` alone does not install the full stack.
+# Python into many apk packages; `python-3.11` alone does not install the full stack.
 #
 # Layer 1 — CPython runtime libraries (glibc, openssl, sqlite, readline, etc.)
 # hadolint ignore=DL3018,DL3059

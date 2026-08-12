@@ -33,11 +33,14 @@ def test_python_cache_fragment_uses_uv_sync(tmp_path: Path) -> None:
     assert "--all-extras" in content
     assert "--all-groups" in content
     assert "--python-platform" not in content
-    assert "uv pip install" not in content
-    assert "uv export" not in content
     assert "USER root" not in content
     assert "chown -R notebooks" not in content
     assert f"--no-install-package {LOCAL_SHARED_PACKAGE}" in content
+    # Wheelhouse population: export the deploy-time set and download the exact published
+    # artifacts into the shared find-links directory.
+    assert "uv export --frozen --no-dev --no-emit-local --no-emit-project" in content
+    assert "pip download --no-deps --no-cache-dir" in content
+    assert "--dest /opt/wheelhouse" in content
     assert "rm -rf /tmp/uv-cache-warm-agent" in content
 
 

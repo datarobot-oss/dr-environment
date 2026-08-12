@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Host deployed agent and MCP custom models. DataRobot builds each deployed model FROM this image and runs `/opt/code/start_server.sh`; provide that entrypoint (a dispatcher: `workflow.yaml` → agent via `nat dragent serve`, `app/` → MCP server via `python -m app.main`), matching the stock GenAI Agents execution environment. Without it the model image build failed at `chmod /opt/code/start_server.sh`. For air-gapped deployments, models install their dependencies from the baked cache: uv's cache stays enabled under `UV_OFFLINE=1` (instead of the default reproducible-but-online `UV_NO_CACHE`), `/opt/venv` is pre-created writable, and the baked uv cache is made writable by the model's runtime user (uid 1000).
+- Bundle the GitHub CLI (`gh`) via Wolfi apk. Temporary workaround — remove once no longer needed.
+- Bake a find-links wheelhouse at `/opt/wheelhouse` (the exact published wheels/sdists of every Python component) and point `UV_FIND_LINKS` at it. DataRobot builds the FastAPI custom application FROM this image with `uv pip install --system --no-cache`, and `--no-cache` makes uv ignore the baked uv cache — so in an air-gapped install the build had no wheels to read and failed (e.g. `ag-ui-protocol was not found in the cache`). `--no-cache` does not disable find-links, and `pip download` fetches the exact published artifacts so their hashes match the deploy-time requirements.
+
+### Fixed
+
+- Build the execution environment on Python 3.11 (was 3.12) to match the stock `[DataRobot] Python 3.11 GenAI Agents` environment. On 3.12, deployed dragent agents crash-loop on boot: uvicorn aliases its `asyncio_run` to `asyncio.run`, which NAT patches via `nest_asyncio` and cannot patch a uvloop event loop (`Can't patch loop of type uvloop.Loop`). On 3.11 uvicorn uses its own `asyncio.Runner`-based path that bypasses the patch, so agents start under multi-worker gunicorn. All component lockfiles already allow 3.11 (`requires-python >=3.11`) and resolve unchanged.
+- Pre-create the Agent Assist plugin venv at build time so Agent Assist launches in the offline image; it otherwise fails building the venv on first launch.
+- Pin uv to the system CPython (`UV_PYTHON_PREFERENCE=system`) and pre-warm `uvx copier` into the baked offline cache so `dr start` (which runs `uvx copier recopy`) resolves copier offline. The Agent Assist step installs a managed CPython 3.11 that uv would otherwise prefer at runtime, making offline `uvx copier` resolve against an interpreter with no cached wheels and fail.
+- Source `setup-caches.sh` from `setup-venv.sh` via the script's own directory instead of `${WORKDIR}`. `WORKDIR` is a build-time ARG and is empty at runtime, so the baked Pulumi provider plugins were never seeded into the platform's `PULUMI_HOME` (mounted persistent storage), and `pulumi up` tried to download them — failing offline.
+
 ## Version 0.1.0 (2026-07-23)
 
 ### Added

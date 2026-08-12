@@ -21,15 +21,36 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # hadolint ignore=DL3018,DL3059
 RUN apk add --no-cache git
 
+# TEMPORARY WORKAROUND: bundle the GitHub CLI. Remove once it is no longer needed.
+# hadolint ignore=DL3018,DL3059
+RUN apk add --no-cache gh
+
 USER $UNAME
+# UV_CACHE_DIR points at the baked offline cache so tools installed here (copier,
+# datarobot) and their wheels land where the runtime (UV_OFFLINE=1) looks for them.
+# UV_PYTHON_PREFERENCE=system keeps every uv operation on the image's system CPython
+# (3.11). Otherwise, under uv's default `managed` preference, steps that request Python
+# 3.11 — the Agent Assist venv below and the ephemeral `uvx copier` resolve run by
+# `dr start` — would each download a separate managed CPython instead of reusing the
+# system one, adding an unneeded interpreter and (offline) resolving against uncached
+# wheels. System Python is the interpreter the offline cache was populated for.
 ENV HOME=/home/notebooks \
-    PATH="/home/notebooks/.local/bin:$PATH"
+    PATH="/home/notebooks/.local/bin:$PATH" \
+    UV_CACHE_DIR=/opt/cache/uv \
+    UV_PYTHON_PREFERENCE=system
 
 # versions.yaml — uv ({{ uv_version }})
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_VERSION="{{ uv_version }}" sh
 
 # copier ({{ copier_version }}; default when not listed in recipe)
 RUN uv tool install "copier=={{ copier_version }}"
+
+# Warm the `uvx copier` ephemeral environment so `dr start` (which runs bare
+# `uvx copier recopy`) can resolve copier and its whole dependency tree from the
+# baked cache offline. Invoked bare to match `dr start`, and — thanks to
+# UV_PYTHON_PREFERENCE=system above — resolved against the same system CPython the
+# runtime uses.
+RUN uvx copier --version
 
 # datarobot ({{ datarobot_version }}; default when not listed in recipe)
 RUN uv tool install --force "datarobot[core]>={{ datarobot_version }}"
@@ -53,6 +74,20 @@ RUN curl -fsSL -o /tmp/dr.tar.gz \
 RUN dr plugin install xp \
     && dr plugin install opencode \
     && dr plugin install assist
+
+# Pre-create the Agent Assist venv under the name dr-assist derives at runtime (the
+# wheel basename without .whl). Agent Assist builds this venv on first launch, which
+# fails in the offline image; baking it here lets it start. `uv venv` uses the system
+# interpreter (3.11), which matches the plugin's cp311 wheel.
+# ~/.cache already exists root-owned from an earlier build step, so hand it to the
+# runtime user before creating the venv inside it.
+USER root
+RUN install -d -o "$UNAME" -g "$UNAME" /home/notebooks/.cache
+USER $UNAME
+RUN wheel=$(echo /home/notebooks/.config/datarobot/plugins/assist/dr_assist-*-cp311-cp311-manylinux*_x86_64*.whl) \
+    && venv_dir="/home/notebooks/.cache/dr-assist-venv-$(basename "$wheel" .whl)" \
+    && uv venv "$venv_dir" \
+    && uv pip install --python "$venv_dir/bin/python" "$wheel"
 
 # versions.yaml — pulumi ({{ pulumi_version }})
 RUN curl -fsSL https://get.pulumi.com | sh -s -- \

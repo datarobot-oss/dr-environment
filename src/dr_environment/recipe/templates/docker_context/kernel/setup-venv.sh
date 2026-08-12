@@ -3,9 +3,13 @@
 # we don't want it output anything in the terminal session setup
 VERBOSE_MODE=${1:-false}
 
+# Resolve setup-caches.sh next to this script. WORKDIR is a build-time ARG and is
+# not set at runtime, so sourcing via ${WORKDIR} silently skipped setup-caches.sh
+# (and its Pulumi plugin seeding) in kernel and login shells.
+KERNEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-if [ -f "${WORKDIR}/setup-caches.sh" ]; then
-  source "${WORKDIR}/setup-caches.sh"
+if [ -f "${KERNEL_DIR}/setup-caches.sh" ]; then
+  source "${KERNEL_DIR}/setup-caches.sh"
 fi
 
 IS_CODESPACE=$([[ "${WORKING_DIR}" == *"/storage"* ]] && echo true || echo false)
