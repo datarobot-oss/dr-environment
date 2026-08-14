@@ -93,7 +93,7 @@ def _python_cache_lines(component_name: str) -> list[str]:
         _copy_component_tree(component_name),
         f"WORKDIR /tmp/cache-work/{component_name}",
         # Warm the uv cache; agent/MCP custom models install from it at runtime with
-        # `uv sync` (see the start_server.sh block in the offline stage). Mirror the same
+        # `uv sync`. Mirror the same
         # dependencies into the shared wheelhouse in the same RUN (see WHEELHOUSE above for
         # why DataRobot's `--no-cache` app build cannot read the uv cache): `pip download`
         # fetches the exact published artifacts, so their hashes match the ones `uv export`

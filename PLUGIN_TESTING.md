@@ -56,8 +56,6 @@ NPM_CONFIG_OFFLINE=true
 GOPROXY=off
 ```
 
-Verify `start_server_custom_model.sh` is **not** copied (Codespaces-only image uses `start_server_codespaces.sh` from the base stage).
-
 ## Component hook
 
 Add to a component `Taskfile.yml`:

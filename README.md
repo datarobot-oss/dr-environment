@@ -32,6 +32,8 @@ docker build --platform linux/amd64 -t exec-env .
 
 On Apple Silicon, always pass `--platform linux/amd64`. An arm64 image fails at runtime with `exec format error` on `start_server.sh`.
 
+**Requires BuildKit.** The Dockerfile uses `COPY --chmod`, which fails the build outright (`the --chmod option requires BuildKit`) without it. Docker CLI 23+ enables BuildKit by default; older setups need `DOCKER_BUILDKIT=1` or `docker buildx build`.
+
 4. Export the image to a tarball:
 
 ```bash

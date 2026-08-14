@@ -1,15 +1,3 @@
-{% if cache_stage %}
-# The deployed model runs as uid 1000 (see the start_server.sh block below) and uses the
-# baked uv cache as uv's cache dir; uv opens cache files for writing at startup, so they
-# must be writable by any uid. Do the chmod in a throwaway stage and let the plain COPY
-# below carry the modes into the image: `COPY --chmod` would need BuildKit, which the
-# platform image builder does not enable, and a `RUN chmod -R` in the final stage would
-# copy the whole multi-GB cache into a new layer.
-FROM {{ cache_stage }} AS cache-perms
-USER root
-RUN chmod -R a+rwX /opt/cache/uv
-{% endif %}
-
 # Post-cache runtime and offline notebook environment.
 # Cache stages are throwaway intermediates; only warmed cache dirs are copied into the image.
 FROM kernel AS offline
@@ -23,29 +11,19 @@ LABEL com.datarobot.repo-sha=$GIT_COMMIT
 {% if cache_stage %}
 USER root
 {% for cache_path in cache_copy_paths %}
-{% if cache_path.endswith('/uv') %}
-COPY --from=cache-perms --chown=notebooks:notebooks {{ cache_path }} {{ cache_path }}
-# Classic `COPY --from` resets the copied top-level dir to 0755 (nested modes are kept), so
-# restore 0777 on the cache root — one inode — letting the uid-1000 model create its lock
-# and temp files there.
+# --chmod applies recursively to the whole copied tree, letting the uid-1000 model
+# read/write/traverse everything under the cache root (e.g. uv opens cache files for
+# writing at startup). It does not stick to the destination dir's own inode though —
+# `COPY --from` still resets that to 0755 — so restore 0777 on the cache root itself,
+# letting the uid-1000 model create new lock/temp files directly there.
+COPY --from={{ cache_stage }} --chown=notebooks:notebooks --chmod=0777 {{ cache_path }} {{ cache_path }}
 RUN chmod 0777 {{ cache_path }}
-{% else %}
-COPY --from={{ cache_stage }} --chown=notebooks:notebooks {{ cache_path }} {{ cache_path }}
-{% endif %}
 {% endfor %}
 {% endif %}
 
-# Custom-model host capability. DataRobot builds each deployed model FROM this image and
-# runs /opt/code/start_server.sh; the stock GenAI Agents EE provides it, so this image must
-# too. The script dispatches on the uploaded files: workflow.yaml -> agent
-# (nat dragent serve), app/ -> MCP server (python -m app.main). Deployed models run as
-# uid 1000, not this image's notebooks user, so the venv dir start_server.sh creates (and
-# the baked uv cache it installs from, above) must be writable by any uid.
+# Custom-model host capability.
 USER root
-COPY kernel/start_server_custom_model.sh /opt/code/start_server.sh
-RUN sed -i 's/\r$//' /opt/code/start_server.sh \
-    && chmod a+x /opt/code/start_server.sh \
-    && mkdir -p /opt/venv && chmod a+rwx /opt/venv
+RUN mkdir -p /opt/venv && chmod a+rwx /opt/venv
 
 USER notebooks
 
