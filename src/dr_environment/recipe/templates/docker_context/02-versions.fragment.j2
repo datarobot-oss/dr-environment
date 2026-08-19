@@ -28,10 +28,6 @@ RUN apk add --no-cache gh
 USER $UNAME
 # UV_CACHE_DIR points at the baked offline cache so tools installed here (copier,
 # datarobot) and their wheels land where the runtime (UV_OFFLINE=1) looks for them.
-# UV_INDEX_URL pins the index this cache is warmed against to a known value (uv's
-# own default) regardless of the build host's ambient uv config, matching the
-# UV_EXTRA_INDEX_URL the offline runtime falls back to when its own UV_INDEX_URL is
-# replaced by a private mirror.
 # UV_PYTHON_PREFERENCE=system keeps every uv operation on the image's system CPython
 # (3.11). Otherwise, under uv's default `managed` preference, steps that request Python
 # 3.11 — the Agent Assist venv below and the ephemeral `uvx copier` resolve run by
@@ -41,7 +37,6 @@ USER $UNAME
 ENV HOME=/home/notebooks \
     PATH="/home/notebooks/.local/bin:$PATH" \
     UV_CACHE_DIR=/opt/cache/uv \
-    UV_INDEX_URL=https://pypi.org/simple \
     UV_PYTHON_PREFERENCE=system
 
 # versions.yaml — uv ({{ uv_version }})
@@ -56,6 +51,17 @@ RUN uv tool install "copier=={{ copier_version }}"
 # UV_PYTHON_PREFERENCE=system above — resolved against the same system CPython the
 # runtime uses.
 RUN uvx copier --version
+
+# Also download copier's full dependency closure into the shared wheelhouse
+# (find-links, see 99-offline). The uv cache warm-up above is keyed to whatever index
+# this build resolved against, so it's invisible to an install that points UV_INDEX_URL
+# at its own mirror instead. Find-links reads wheels straight off disk with no
+# index/URL/network involved, so it resolves regardless of what UV_INDEX_URL is set to.
+RUN venv=/tmp/copier-wheelhouse-warm \
+    && uv venv "$venv" \
+    && uv pip install --python "$venv/bin/python" pip \
+    && "$venv/bin/python" -m pip download "copier=={{ copier_version }}" --dest /opt/wheelhouse \
+    && rm -rf "$venv"
 
 # datarobot ({{ datarobot_version }}; default when not listed in recipe)
 RUN uv tool install --force "datarobot[core]>={{ datarobot_version }}"

@@ -8,11 +8,6 @@ export GOCACHE="${GOCACHE:-/opt/cache/go/build}"
 
 if [ "${NOTEBOOKS_AIR_GAP:-}" = "1" ]; then
   export UV_OFFLINE=1
-  # Keep pypi.org (the index the baked uv cache was warmed against) queryable as an
-  # extra index even if the platform's own env replaced UV_INDEX_URL with a private
-  # mirror — uv keys cached registry metadata by index URL, so otherwise offline
-  # `uvx`/`uv` calls only see the mirror's uncached index and fail.
-  export UV_EXTRA_INDEX_URL="${UV_EXTRA_INDEX_URL:-https://pypi.org/simple}"
   export NPM_CONFIG_OFFLINE=true
   export GOPROXY=off
 fi
