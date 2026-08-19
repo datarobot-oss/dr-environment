@@ -11,3 +11,16 @@ RUN uv venv /tmp/build-deps-venv \
     && UV_CACHE_DIR="${UV_CACHE_DIR}" uv pip install -r /tmp/build-deps/build-requirements.txt \
         --python /tmp/build-deps-venv/bin/python \
     && rm -rf /tmp/build-deps-venv
+
+# Also download these into the shared wheelhouse (find-links, see 99-offline). The uv
+# cache warm-up above is keyed to whatever index this build resolved against, so it's
+# invisible to an install that points UV_INDEX_URL at its own mirror instead — including
+# `uv sync` building a local/editable component (e.g. `core`), which needs its
+# build-system.requires (hatchling) resolved regardless of --frozen/UV_FROZEN. Find-links
+# reads wheels straight off disk with no index/URL/network involved, so it resolves
+# regardless of what UV_INDEX_URL is set to.
+RUN venv=/tmp/build-deps-wheelhouse-warm \
+    && uv venv "$venv" \
+    && uv pip install --python "$venv/bin/python" pip \
+    && "$venv/bin/python" -m pip download -r /tmp/build-deps/build-requirements.txt --dest /opt/wheelhouse \
+    && rm -rf "$venv" /tmp/build-deps
