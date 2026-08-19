@@ -35,8 +35,6 @@ repos:
         types: [python]
         pass_filenames: false
 
-      # Manual-stage because it needs Docker, which would block commits when the daemon is down.
-      #   pre-commit run fix-licenses --hook-stage manual --all-files
       - id: fix-licenses
         name: fix-licenses
         entry: >
@@ -44,5 +42,4 @@ repos:
           ghcr.io/apache/skywalking-eyes/license-eye:785bb7f3810572d6912666b4f64bad28e4360799
           -v info -c .licenserc.yaml header fix
         language: system
-        stages: [manual]
         pass_filenames: false
