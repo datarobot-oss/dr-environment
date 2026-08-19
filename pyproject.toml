@@ -54,11 +54,16 @@ select = [
 extend-ignore = [
     "D100", "D101", "D102", "D103", "D104", "D105", "D106",
     "D205",
-    "PLR0913", "PLR0915", "PLR0912",
-    # mutually incompatible with D211 / D212, which we keep
-    "D203", "D213",
+    "PLR0915", "PLR0912",
 ]
 fixable = ["I", "D", "UP", "F401"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.pylint]
+allow-magic-value-types = ["int", "str", "bytes"]
+max-args = 8
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["D104", "F401"]
