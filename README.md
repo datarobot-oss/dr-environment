@@ -94,6 +94,8 @@ Per-component cache stages run `uv sync --frozen --no-install-project` against e
 
 The Dockerfile always sets strict offline env vars (`UV_OFFLINE=1`, `NPM_CONFIG_OFFLINE=true`, `GOPROXY=off`) in addition to shared cache paths. `NOTEBOOKS_AIR_GAP=1` in `setup-caches.sh` applies the same overrides for login shells.
 
+This is deliberate and always-on, not a toggle for the platform to opt out of. Without `UV_OFFLINE=1`, a cache miss makes uv fall through to whatever `UV_INDEX_URL`/mirror is configured in the environment — in an air-gapped install that host can be unreachable, or have no access to a certain library. So instead of a fast, clear "not found in the cache" error, the install hangs until the request times out or fails. Keeping this image strictly offline trades "install anything, sometimes slowly or not at all" for "install only what's baked, fail fast and clearly otherwise." A platform that needs to install extra, non-baked packages from its own reachable mirror should do so outside this image (e.g. in a derived image or a separate step), not by unsetting these vars here.
+
 ## Component hooks
 
 If a component Taskfile defines an `environment` task, `dr environment recipe` runs it with:
