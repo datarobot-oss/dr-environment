@@ -1,38 +1,39 @@
-name: Changelog Check
-
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
-
-jobs:
-  changelog-check:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
-        with:
-          fetch-depth: 0
-
-      - name: Check changelog was updated
-        run: |
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}" == "true" ]]; then
-            echo "Skipping changelog check (skip-changelog label present)"
-            exit 0
-          fi
-
-          git fetch origin ${{ github.base_ref }}
-          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^CHANGELOG.md$"; then
-            echo "CHANGELOG.md was updated"
-          else
-            echo "::error::CHANGELOG.md was not updated. Update it, or add the 'skip-changelog' label."
-            exit 1
-          fi
+# Disabled until the repo migrated to oss org.
+# name: Changelog Check
+#
+# on:
+#   pull_request:
+#     types: [opened, synchronize, reopened, labeled, unlabeled]
+#
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
+#
+# permissions:
+#   contents: read
+#
+# jobs:
+#   changelog-check:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+#         with:
+#           fetch-depth: 0
+#
+#       - name: Check changelog was updated
+#         run: |
+#           if [[ "${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}" == "true" ]]; then
+#             echo "Skipping changelog check (skip-changelog label present)"
+#             exit 0
+#           fi
+#
+#           git fetch origin ${{ github.base_ref }}
+#           if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^CHANGELOG.md$"; then
+#             echo "CHANGELOG.md was updated"
+#           else
+#             echo "::error::CHANGELOG.md was not updated. Update it, or add the 'skip-changelog' label."
+#             exit 1
+#           fi

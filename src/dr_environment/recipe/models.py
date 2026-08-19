@@ -17,24 +17,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 
-class Ecosystem(str, Enum):
+class Ecosystem(StrEnum):
     PYTHON = "python"
     NPM = "npm"
     GO = "go"
 
 
-class LockfileStatus(str, Enum):
+class LockfileStatus(StrEnum):
     OK = "ok"
     MISSING = "missing"
     STALE = "stale"
     NOT_APPLICABLE = "n/a"
 
 
-class ComponentStrategy(str, Enum):
+class ComponentStrategy(StrEnum):
     DEFAULT = "default"
     HOOK = "hook"
     SKIP = "skip"
