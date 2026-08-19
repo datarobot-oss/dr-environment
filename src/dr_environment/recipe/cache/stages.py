@@ -19,6 +19,10 @@ GO_CACHE_ROOT = "/opt/cache/go"
 # `uv pip install --system --no-cache`, and `--no-cache` makes uv ignore UV_CACHE. uv still
 # honours find-links, so the offline stage points UV_FIND_LINKS here (see _python_cache_lines).
 WHEELHOUSE = "/opt/wheelhouse"
+# uv's own default index; pinned explicitly so the cache is warmed against a known value
+# regardless of the build host's ambient uv config (see 02-versions.fragment.j2 and
+# 99-offline.fragment.j2, which pin/fall back to this same URL at build and runtime).
+PYPI_INDEX_URL = "https://pypi.org/simple"
 
 # Paths copied from the final cache stage into the offline runtime image.
 CACHE_COPY_PATHS = (
@@ -90,6 +94,11 @@ def _python_cache_lines(component_name: str) -> list[str]:
     wheelhouse_req = f"/tmp/wheelhouse-req-{component_name}.txt"
     return [
         f"ENV UV_CACHE_DIR={UV_CACHE}",
+        # Pin the index this cache is warmed against to a known value (uv's own default)
+        # regardless of the build host's ambient uv config — the offline runtime falls back
+        # to this same URL via UV_EXTRA_INDEX_URL when its own UV_INDEX_URL is replaced by a
+        # private mirror (see 02-versions.fragment.j2 and 99-offline.fragment.j2).
+        f"ENV UV_INDEX_URL={PYPI_INDEX_URL}",
         _copy_component_tree(component_name),
         f"WORKDIR /tmp/cache-work/{component_name}",
         # Warm the uv cache; agent/MCP custom models install from it at runtime with

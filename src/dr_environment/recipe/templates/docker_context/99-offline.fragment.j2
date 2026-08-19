@@ -49,6 +49,10 @@ RUN sed -i 's/\r$//' /opt/code/start_server.sh \
 
 USER notebooks
 
+# UV_EXTRA_INDEX_URL keeps pypi.org (the index this image's uv cache was warmed
+# against) in play even when an air-gapped install's own env replaces UV_INDEX_URL
+# with a private mirror — uv keys cached registry metadata by index URL, so without
+# this, offline `uvx`/`uv` calls see only the mirror's (uncached) index and fail.
 ENV HOME=/home/notebooks \
     PATH="${VENV_PATH}/bin:/home/notebooks/.local/bin:$PATH" \
     PYTHONPATH="/home/notebooks/.ipython/extensions:/home/notebooks/storage" \
@@ -67,6 +71,7 @@ ENV HOME=/home/notebooks \
     GOMODCACHE=/opt/cache/go/pkg/mod \
     GOCACHE=/opt/cache/go/build \
     UV_OFFLINE=1 \
+    UV_EXTRA_INDEX_URL=https://pypi.org/simple \
     UV_PYTHON_PREFERENCE=system \
     NPM_CONFIG_OFFLINE=true \
     GOPROXY=off \
