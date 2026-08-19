@@ -216,10 +216,10 @@ The hook is responsible for copying files and appending its Dockerfile fragment.
 
 ## Reference implementations
 
-- **Upstream kernel base**: `datarobot-user-models/public_dropin_notebook_environments/python313_notebook/Dockerfile` (private Chainguard image; we use open Wolfi instead)
-- **Recipe devcontainer** (Pulumi, dr CLI patterns): `datarobot-agent-application/.devcontainer/Dockerfile`
-- **versions.yaml tool checks**: recipe `.datarobot/cli/versions.yaml`
-- **E2E test image** (older Ubuntu-based tool install): `recipe-datarobot-agent-application/tests/docker/E2E_tests_image.Dockerfile`
+- **Base image**: public `cgr.dev/chainguard/wolfi-base`
+- **Upstream kernel base**: [datarobot-user-models](https://github.com/datarobot/datarobot-user-models) `public_dropin_notebook_environments/python313_notebook/Dockerfile`
+- **Application devcontainer** (Pulumi, `dr` CLI patterns): [datarobot-agent-application](https://github.com/datarobot-community/datarobot-agent-application) `.devcontainer/Dockerfile`
+- **versions.yaml tool checks**: the application's `.datarobot/cli/versions.yaml`
 
 ## Coding style
 

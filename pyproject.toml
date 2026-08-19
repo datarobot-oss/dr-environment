@@ -18,6 +18,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
+    "ruff>=0.14.0",
+    "mypy>=1.14",
+    "types-PyYAML",
 ]
 
 [project.scripts]
@@ -28,3 +31,45 @@ packages = ["src/dr_environment"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+# Vendored from datarobot-user-models and rendered into customer images. Kept
+# byte-compatible with upstream, and they rely on implicit globals (Jupyter `c`).
+extend-exclude = ["src/dr_environment/recipe/templates"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "PL",  # pylint
+    "UP",  # pyupgrade
+    "INP", # missing __init__.py
+    "B006", # mutable-argument-default
+]
+extend-ignore = [
+    "D100", "D101", "D102", "D103", "D104", "D105", "D106",
+    "D205",
+    "PLR0913", "PLR0915", "PLR0912",
+    # mutually incompatible with D211 / D212, which we keep
+    "D203", "D213",
+]
+fixable = ["I", "D", "UP", "F401"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["D104", "F401"]
+# long literal Dockerfile fragments are asserted verbatim; wrapping them hurts readability
+"tests/*" = ["D100", "D103", "PLR2004", "E501"]
+
+[tool.mypy]
+python_version = "3.10"
+disallow_untyped_defs = true
+disable_error_code = ["import-untyped"]
+ignore_missing_imports = true
+pretty = true
+show_absolute_path = true
+exclude = "src/dr_environment/recipe/templates"

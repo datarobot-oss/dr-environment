@@ -1,0 +1,32 @@
+dr-environment
+Copyright 2026 DataRobot, Inc. and its affiliates.
+
+This product includes software developed at DataRobot, Inc.
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+The execution-environment templates under
+src/dr_environment/recipe/templates/docker_context/ include portions of the
+following third-party works. Each remains under its own license.
+
+1. neptune-client
+   Copyright Neptune Labs
+   Licensed under the Apache License, Version 2.0.
+   https://github.com/neptune-ai/neptune-client
+   Portions reused in kernel/agent/cgroup_watchers.py (cgroup resource sampling).
+
+2. IPython
+   Copyright IPython Development Team
+   Licensed under the BSD 3-Clause License.
+   https://github.com/ipython/ipython
+   Portions reused in kernel/extensions/dataframe_formatter.py, derived from
+   IPython's JSONFormatter (including the return-value check helper).
+
+3. OpenSSH
+   Copyright OpenBSD Project and contributors
+   Licensed under the OpenSSH license (BSD-style).
+   https://www.openssh.com/
+   kernel/sshd_config is derived from the stock OpenSSH server configuration.

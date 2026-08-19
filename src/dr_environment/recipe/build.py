@@ -1,3 +1,17 @@
+#
+# Copyright 2026 DataRobot, Inc. and its affiliates.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Orchestrate docker context build."""
 
 from __future__ import annotations
@@ -12,14 +26,14 @@ from dr_environment.recipe.cache.stages import write_component_cache_fragments
 from dr_environment.recipe.discover import discover_components
 from dr_environment.recipe.hooks import run_environment_hook
 from dr_environment.recipe.layout import layout_components
-from dr_environment.recipe.models import Component, ComponentStrategy
+from dr_environment.recipe.models import ComponentStrategy
 from dr_environment.recipe.render import (
     assemble_dockerfile,
     copy_fragment_assets,
     render_base_fragment,
     render_build_deps_fragment,
-    render_offline_fragment,
     render_kernel_setup_fragment,
+    render_offline_fragment,
     render_user_fragment,
     render_versions_fragment,
 )
@@ -66,11 +80,7 @@ def build(
             inspect_component(component)
             layout_components([component], docker_context)
 
-    active = [
-        c
-        for c in components
-        if c.strategy == ComponentStrategy.DEFAULT and c.manifests
-    ]
+    active = [c for c in components if c.strategy == ComponentStrategy.DEFAULT and c.manifests]
     cache_stage = write_component_cache_fragments(active, docker_context)
 
     render_offline_fragment(docker_context, cache_stage=cache_stage)

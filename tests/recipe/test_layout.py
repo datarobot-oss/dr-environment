@@ -1,7 +1,25 @@
+#
+# Copyright 2026 DataRobot, Inc. and its affiliates.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from pathlib import Path
 
 from dr_environment.recipe.cache.stages import write_component_cache_fragment
-from dr_environment.recipe.layout import LOCAL_SHARED_PACKAGE, copy_component, strip_local_shared_python_package
+from dr_environment.recipe.layout import (
+    LOCAL_SHARED_PACKAGE,
+    copy_component,
+    strip_local_shared_python_package,
+)
 from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
 
 
@@ -123,7 +141,9 @@ def test_copy_component_from_nested_bin_manifest(tmp_path: Path) -> None:
     component_dir = tmp_path / "docs"
     docs_bin = component_dir / ".bin"
     docs_bin.mkdir(parents=True)
-    (docs_bin / "pyproject.toml").write_text('[project]\nname = "af-component-docs"\n', encoding="utf-8")
+    (docs_bin / "pyproject.toml").write_text(
+        '[project]\nname = "af-component-docs"\n', encoding="utf-8"
+    )
     (docs_bin / "uv.lock").write_text("version = 1\n", encoding="utf-8")
 
     component = Component(

@@ -1,0 +1,6 @@
+# Either Buzok or MCP can approve. GitHub treats multiple owners on one rule as
+# any-of, so a review from either team satisfies code-owner review.
+#
+# NOTE: these teams only resolve once this repo lives in datarobot-oss. Until the
+# transfer, code-owner review cannot be enforced.
+* @datarobot-oss/buzok @datarobot-oss/mcp
