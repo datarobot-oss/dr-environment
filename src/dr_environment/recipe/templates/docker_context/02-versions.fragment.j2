@@ -57,10 +57,13 @@ RUN uvx copier --version
 # this build resolved against, so it's invisible to an install that points UV_INDEX_URL
 # at its own mirror instead. Find-links reads wheels straight off disk with no
 # index/URL/network involved, so it resolves regardless of what UV_INDEX_URL is set to.
+# --only-binary=:all: fails this build step loudly if a future copier release pulls in
+# a transitive dep with no published wheel, instead of silently baking an sdist that
+# would need a working compiler toolchain to build offline at the customer's runtime.
 RUN venv=/tmp/copier-wheelhouse-warm \
     && uv venv "$venv" \
     && uv pip install --python "$venv/bin/python" pip \
-    && "$venv/bin/python" -m pip download "copier=={{ copier_version }}" --dest /opt/wheelhouse \
+    && "$venv/bin/python" -m pip download --only-binary=:all: "copier=={{ copier_version }}" --dest /opt/wheelhouse \
     && rm -rf "$venv"
 
 # datarobot ({{ datarobot_version }}; default when not listed in recipe)

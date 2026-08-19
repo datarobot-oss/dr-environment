@@ -19,8 +19,11 @@ RUN uv venv /tmp/build-deps-venv \
 # build-system.requires (hatchling) resolved regardless of --frozen/UV_FROZEN. Find-links
 # reads wheels straight off disk with no index/URL/network involved, so it resolves
 # regardless of what UV_INDEX_URL is set to.
+# --only-binary=:all: fails this build step loudly if a future version pulls in a
+# transitive dep with no published wheel, instead of silently baking an sdist that
+# would need a working compiler toolchain to build offline at the customer's runtime.
 RUN venv=/tmp/build-deps-wheelhouse-warm \
     && uv venv "$venv" \
     && uv pip install --python "$venv/bin/python" pip \
-    && "$venv/bin/python" -m pip download -r /tmp/build-deps/build-requirements.txt --dest /opt/wheelhouse \
+    && "$venv/bin/python" -m pip download --only-binary=:all: -r /tmp/build-deps/build-requirements.txt --dest /opt/wheelhouse \
     && rm -rf "$venv" /tmp/build-deps
