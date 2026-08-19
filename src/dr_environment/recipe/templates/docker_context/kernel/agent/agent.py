@@ -16,15 +16,15 @@ import asyncio
 import logging
 
 import ecs_logging
-from cgroup_watchers import CGroupFileReader
-from cgroup_watchers import CGroupVersionUnsupported
-from cgroup_watchers import CGroupWatcher
-from cgroup_watchers import DummyWatcher
-from cgroup_watchers import SystemWatcher
-from fastapi import FastAPI
-from fastapi import WebSocket
-from websockets.exceptions import ConnectionClosedError
-from websockets.exceptions import ConnectionClosedOK
+from cgroup_watchers import (
+    CGroupFileReader,
+    CGroupVersionUnsupported,
+    CGroupWatcher,
+    DummyWatcher,
+    SystemWatcher,
+)
+from fastapi import FastAPI, WebSocket
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 logger = logging.getLogger("kernel_agent")
 

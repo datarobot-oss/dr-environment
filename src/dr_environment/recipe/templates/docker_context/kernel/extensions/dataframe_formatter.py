@@ -17,24 +17,19 @@
 import json
 import sys
 import traceback
+from collections.abc import Callable
 from enum import Enum
-from typing import Any
-from typing import Callable
-from typing import Optional
-from typing import Union
-from typing import cast
+from typing import Any, cast
 
 from IPython.core.formatters import BaseFormatter
 from IPython.core.magic import Magics
 from pydantic import BaseModel
-from traitlets import ObjectName
-from traitlets import Unicode
+from traitlets import ObjectName, Unicode
 
 is_pandas_loaded = True
 
 try:
-    from pandas import DataFrame
-    from pandas import io
+    from pandas import DataFrame, io
 except ImportError:
     is_pandas_loaded = False
 
@@ -60,7 +55,7 @@ class DataframeAggregationParams(Entity):
 
 
 class DataframeFilterParams(Entity):
-    filter_by: Optional[str]
+    filter_by: str | None
     filter: str
 
 
@@ -99,7 +94,8 @@ def _validate_columns(data: DataFrame) -> None:
     Args:
         data (DataFrame): in-memory DataFrame
 
-    Returns:
+    Returns
+    -------
         None
     """
     convertable_types = [
@@ -172,7 +168,7 @@ def _transform_to_json(data: DataFrame) -> Any:
     return json.loads(data.to_json(orient="table", index=True, default_handler=str))["data"]
 
 
-def _prepare_df_for_chart_cell(val: DataFrame, columns: list[str]) -> Union[DataFrame, list[str]]:
+def _prepare_df_for_chart_cell(val: DataFrame, columns: list[str]) -> DataFrame | list[str]:
     if len(columns) == 0:
         data = []
     elif len(columns) == 1:
@@ -188,7 +184,7 @@ def _prepare_df_for_chart_cell(val: DataFrame, columns: list[str]) -> Union[Data
 # This formatter can operate with data that we have received as a DataFrame
 def formatter(  # noqa: C901,PLR0912
     val: "DataFrame",
-    formatter: Optional[Callable[..., list[str]]] = None,
+    formatter: Callable[..., list[str]] | None = None,
     **formatter_kwargs: Any,
 ) -> dict[str, Any]:
     error = []
@@ -327,16 +323,16 @@ class DataFrameFormatter(BaseFormatter):  # type: ignore[misc]
         if md is not None:
             # put the tuple back together
             r = (r, md)
-        return super(DataFrameFormatter, self)._check_return(r, obj)
+        return super()._check_return(r, obj)
 
 
 # Load our extension into ipython kernel
 def load_ipython_extension(ipython: Magics) -> None:
     if is_pandas_loaded:
         dataframe_json_formatter = DataFrameFormatter()
-        ipython.display_formatter.formatters[
-            "application/vnd.dataframe+json"
-        ] = dataframe_json_formatter
+        ipython.display_formatter.formatters["application/vnd.dataframe+json"] = (
+            dataframe_json_formatter
+        )
         dataframe_json_formatter.for_type(DataFrame, formatter)
 
         print("Pandas DataFrame MimeType Extension loaded")

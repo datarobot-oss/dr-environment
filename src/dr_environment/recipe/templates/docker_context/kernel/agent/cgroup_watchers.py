@@ -26,7 +26,8 @@ NANO_SECS = 10**9
 
 class CGroupVersionUnsupported(Exception):
     """There are two versions of CGroups, the agent is compatible with V1 only.
-    This error occurs when the agent was tried to be ran in V2"""
+    This error occurs when the agent was tried to be ran in V2
+    """
 
 
 class SystemWatcher:
@@ -88,7 +89,7 @@ class CGroupFileReader:
         :return: directory where subsystem is mounted
         """
         try:
-            with open("/proc/mounts", "r") as f:
+            with open("/proc/mounts") as f:
                 for line in f.readlines():
                     split_line = re.split(r"\s+", line)
                     mount_dir = split_line[1]
