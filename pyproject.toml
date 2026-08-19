@@ -35,8 +35,6 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 indent-width = 4
-# Vendored from datarobot-user-models and rendered into customer images. Kept
-# byte-compatible with upstream, and they rely on implicit globals (Jupyter `c`).
 extend-exclude = ["src/dr_environment/recipe/templates"]
 
 [tool.ruff.lint]
