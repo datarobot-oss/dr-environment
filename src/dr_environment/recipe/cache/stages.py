@@ -115,6 +115,12 @@ def _python_cache_lines(component_name: str) -> list[str]:
         # exactly what DataRobot installs: production dependencies, project and workspace
         # members excluded. warm_venv must be removed in this same RUN — splitting the sync
         # and the rm across RUNs would bake the multi-GB venv into the earlier layer for good.
+        # No --only-binary=:all: here (unlike the copier/build-deps wheelhouse downloads):
+        # components pull in arbitrary packages we don't control, and plenty of legitimate
+        # pure-Python packages have stopped publishing wheels without being any less safe to
+        # build offline (e.g. rouge-score >=0.0.7 is sdist-only but pure Python, needing only
+        # the setuptools we already bake in) — rejecting all sdists here would fail builds
+        # over packages that build fine, not just the genuinely risky ones.
         f"RUN UV_PROJECT_ENVIRONMENT={warm_venv} \\",
         f"    uv sync {sync_flags} \\",
         "        --python ${VENV_PATH}/bin/python \\",

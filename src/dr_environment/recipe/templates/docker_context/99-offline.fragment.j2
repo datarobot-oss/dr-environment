@@ -64,6 +64,14 @@ RUN sed -i 's/\r$//' /opt/code/start_server.sh \
 
 USER notebooks
 
+# UV_FROZEN=1 (env equivalent of `uv sync --frozen`) makes every `uv sync` in this
+# image — including ones run by component Taskfiles this repo doesn't control — install
+# straight from the existing uv.lock instead of first checking whether the lock is still
+# valid for the current uv config. That check compares the currently configured index
+# against the index recorded in the lock for each package; an air-gapped install that
+# points UV_INDEX_URL at its own mirror fails that check (wrong index, not just
+# unreachable) and re-resolves from scratch, which then fails offline. `--frozen` skips
+# the check entirely, so it doesn't matter what UV_INDEX_URL is set to.
 ENV HOME=/home/notebooks \
     PATH="${VENV_PATH}/bin:/home/notebooks/.local/bin:$PATH" \
     PYTHONPATH="/home/notebooks/.ipython/extensions:/home/notebooks/storage" \
@@ -82,6 +90,7 @@ ENV HOME=/home/notebooks \
     GOMODCACHE=/opt/cache/go/pkg/mod \
     GOCACHE=/opt/cache/go/build \
     UV_OFFLINE=1 \
+    UV_FROZEN=1 \
     UV_PYTHON_PREFERENCE=system \
     NPM_CONFIG_OFFLINE=true \
     GOPROXY=off \

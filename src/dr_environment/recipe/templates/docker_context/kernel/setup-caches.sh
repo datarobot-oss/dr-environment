@@ -19,6 +19,11 @@ export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-/opt/cache/npm}"
 export NPM_CONFIG_PREFER_OFFLINE="${NPM_CONFIG_PREFER_OFFLINE:-true}"
 export GOMODCACHE="${GOMODCACHE:-/opt/cache/go/pkg/mod}"
 export GOCACHE="${GOCACHE:-/opt/cache/go/build}"
+# Makes every `uv sync` (including ones run by component Taskfiles) install straight
+# from uv.lock instead of first checking the lock against the currently configured uv
+# index — a check that fails (wrong index, not just unreachable) whenever UV_INDEX_URL
+# points at a private mirror instead of whatever index the lock was resolved against.
+export UV_FROZEN="${UV_FROZEN:-1}"
 
 if [ "${NOTEBOOKS_AIR_GAP:-}" = "1" ]; then
   export UV_OFFLINE=1
