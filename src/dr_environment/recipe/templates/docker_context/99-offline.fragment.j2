@@ -1,9 +1,24 @@
+{#
+Copyright 2026 DataRobot, Inc. and its affiliates.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-#}
 {% if cache_stage %}
 # The deployed model runs as uid 1000 (see the start_server.sh block below) and uses the
 # baked uv cache as uv's cache dir; uv opens cache files for writing at startup, so they
 # must be writable by any uid. Do the chmod in a throwaway stage and let the plain COPY
-# below carry the modes into the image: `COPY --chmod` would need BuildKit, which the
-# platform image builder does not enable, and a `RUN chmod -R` in the final stage would
+# below carry the modes into the image: `COPY --chmod` would need BuildKit, which is not
+# always available, and a `RUN chmod -R` in the final stage would
 # copy the whole multi-GB cache into a new layer.
 FROM {{ cache_stage }} AS cache-perms
 USER root
@@ -17,7 +32,7 @@ FROM kernel AS offline
 ARG GIT_COMMIT
 ARG VENV_PATH=/etc/system/kernel/.venv
 
-LABEL com.datarobot.repo-name="notebooks"
+LABEL com.datarobot.repo-name="dr-environment"
 LABEL com.datarobot.repo-sha=$GIT_COMMIT
 
 {% if cache_stage %}

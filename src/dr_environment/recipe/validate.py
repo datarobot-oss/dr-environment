@@ -1,3 +1,17 @@
+#
+# Copyright 2026 DataRobot, Inc. and its affiliates.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Lockfile validation for component manifests."""
 
 from __future__ import annotations
@@ -25,6 +39,7 @@ class ValidationError(Exception):
     """Raised when a component fails lockfile validation."""
 
     def __init__(self, errors: list[str]):
+        """Collect the per-component validation failures into one exception."""
         self.errors = errors
         super().__init__("\n".join(errors))
 
@@ -68,8 +83,7 @@ def validate_component(component: Component) -> None:
         if status != LockfileStatus.OK:
             rel = component.source_dir.name
             errors.append(
-                f"ERROR: component '{component.name}' {message}\n"
-                f"  Fix: cd {rel} && {fix_cmd}"
+                f"ERROR: component '{component.name}' {message}\n  Fix: cd {rel} && {fix_cmd}"
             )
 
     if errors:
@@ -104,6 +118,7 @@ def _check_lockfile(
             cwd=manifest.parent,
             capture_output=True,
             text=True,
+            check=False,  # the returncode is the signal we want, not an exception
         )
         if result.returncode != 0:
             return LockfileStatus.STALE, "has out-of-date uv.lock (uv lock --check failed)"
@@ -114,6 +129,7 @@ def _check_lockfile(
             cwd=manifest.parent,
             capture_output=True,
             text=True,
+            check=False,  # the returncode is the signal we want, not an exception
         )
         if result.returncode != 0:
             return (
@@ -127,6 +143,7 @@ def _check_lockfile(
             cwd=manifest.parent,
             capture_output=True,
             text=True,
+            check=False,  # the returncode is the signal we want, not an exception
         )
         if result.returncode != 0:
             return LockfileStatus.STALE, "has invalid go.sum (go mod verify failed)"

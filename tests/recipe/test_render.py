@@ -1,3 +1,17 @@
+#
+# Copyright 2026 DataRobot, Inc. and its affiliates.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from pathlib import Path
 
 from dr_environment.recipe.render import (
@@ -8,6 +22,7 @@ from dr_environment.recipe.render import (
     render_offline_fragment,
     render_user_fragment,
     render_versions_fragment,
+    template_root,
 )
 from dr_environment.recipe.versions import parse_tool_versions
 
@@ -82,7 +97,7 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     assert "FROM user AS versions" in content
     assert "USER $UNAME" in content
     assert "astral.sh/uv/install.sh" in content
-    assert "UV_VERSION=\"0.9.0\"" in content
+    assert 'UV_VERSION="0.9.0"' in content
     assert "taskfile.dev/install.sh" in content
     assert "v3.43.3" in content
     assert "node-v24.0.0-linux-x64.tar.xz" in content
@@ -91,12 +106,12 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     assert "get.pulumi.com" in content
     assert "opencode.ai/install" in content
     assert "OPENCODE_VERSION=1.17.11" in content
-    assert "uv tool install \"copier==9.17.0\"" in content
+    assert 'uv tool install "copier==9.17.0"' in content
     assert "datarobot[core]>=3.18" in content
-    assert "pulumi plugin install resource datarobot \"$PULUMI_DATAROBOT_VERSION\"" in content
+    assert 'pulumi plugin install resource datarobot "$PULUMI_DATAROBOT_VERSION"' in content
     assert "--server github://api.github.com/datarobot-community/pulumi-datarobot" in content
     assert "PULUMI_DATAROBOT_VERSION=v0.10.43" in content
-    assert "pulumi plugin install resource command \"$PULUMI_COMMAND_VERSION\"" in content
+    assert 'pulumi plugin install resource command "$PULUMI_COMMAND_VERSION"' in content
     assert "PULUMI_COMMAND_VERSION=v1.2.1" in content
     assert "plugin install xp" in content
     assert "pulumi login --local" in content
@@ -114,7 +129,10 @@ def test_render_build_deps_fragment_warms_pep517_build_deps(tmp_path: Path) -> N
     assert "FROM versions AS build-deps" in content
     assert "COPY --chown=${UNAME}:${UNAME} build-deps/build-requirements.txt" in content
     assert "USER root" not in content
-    assert 'UV_CACHE_DIR="${UV_CACHE_DIR}" uv pip install -r /tmp/build-deps/build-requirements.txt' in content
+    assert (
+        'UV_CACHE_DIR="${UV_CACHE_DIR}" uv pip install -r /tmp/build-deps/build-requirements.txt'
+        in content
+    )
     assert "/tmp/build-deps-venv/bin/python" in content
 
 
@@ -153,10 +171,20 @@ def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) 
     assert "FROM kernel AS offline" in content
     # The uv cache is copied from the cache-perms stage (its root is chmod 0777 there so the
     # uid-1000 model can write lock/temp files); the rest come straight from the cache stage.
-    assert "COPY --from=cache-perms --chown=notebooks:notebooks /opt/cache/uv /opt/cache/uv" in content
-    assert "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/npm /opt/cache/npm" in content
-    assert "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/go /opt/cache/go" in content
-    assert "COPY --from=cache-agent --chown=notebooks:notebooks /opt/wheelhouse /opt/wheelhouse" in content
+    assert (
+        "COPY --from=cache-perms --chown=notebooks:notebooks /opt/cache/uv /opt/cache/uv" in content
+    )
+    assert (
+        "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/npm /opt/cache/npm"
+        in content
+    )
+    assert (
+        "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/go /opt/cache/go" in content
+    )
+    assert (
+        "COPY --from=cache-agent --chown=notebooks:notebooks /opt/wheelhouse /opt/wheelhouse"
+        in content
+    )
     assert "UV_FIND_LINKS=/opt/wheelhouse" in content
     assert "UV_OFFLINE=1" in content
     assert "NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES=1" in content
@@ -186,3 +214,22 @@ def test_parse_tool_versions_defaults() -> None:
     assert tools.datarobot == "3.18"
     assert tools.pulumi_datarobot == "v0.10.43"
     assert tools.pulumi_command == "v1.2.1"
+
+
+def test_fragment_license_headers_are_jinja_comments_and_never_reach_the_dockerfile() -> None:
+    # Every fragment must carry the Apache header so the .j2 is licensed like any other
+    # source file, but as a Jinja comment `{# ... -#}` so it is stripped at render time.
+    # A plain `#` header would still satisfy license-eye while leaking 14 lines of
+    # boilerplate into every customer's generated Dockerfile.
+    fragments = sorted(template_root().glob("*.fragment.j2"))
+    assert fragments, "no Dockerfile fragments found"
+
+    for fragment in fragments:
+        source = fragment.read_text(encoding="utf-8")
+        assert source.startswith("{#"), f"{fragment.name} header must open a Jinja comment"
+        assert "Apache License" in source, f"{fragment.name} is missing the license header"
+        header, _, _ = source.partition("-#}")
+        assert "Apache License" in header, (
+            f"{fragment.name} has the license text outside the Jinja comment, "
+            "so it would render into the Dockerfile"
+        )

@@ -1,0 +1,65 @@
+# Configuration for the skywalking-eyes tool, for copyright notice enforcement in this repo.
+#
+# Additional syntax options for this configuration file that are supported by the tool are
+# described in the tool's own documentation here: https://github.com/apache/skywalking-eyes.
+#
+# USAGE
+# -------
+# To check files:
+#    > docker run --rm -v $(pwd):/github/workspace ghcr.io/apache/skywalking-eyes/license-eye:785bb7f3810572d6912666b4f64bad28e4360799 -v info -c .licenserc.yaml header check
+# To fix files automatically:
+#    > docker run --rm -v $(pwd):/github/workspace ghcr.io/apache/skywalking-eyes/license-eye:785bb7f3810572d6912666b4f64bad28e4360799 -v info -c .licenserc.yaml header fix
+header:
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: DataRobot, Inc.
+    content: |-
+
+     Copyright 2026 DataRobot, Inc. and its affiliates.
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+
+  paths:
+    - 'src/dr_environment/**/*.py'
+    - 'src/dr_environment/recipe/templates/docker_context/*.fragment.j2'
+    - 'src/dr_environment/**/*.sh'
+    - 'tests/**/*.py'
+
+  paths-ignore:
+    # Third-party: OpenSSH's stock server config (see NOTICE). Not ours to relicense.
+    - 'src/dr_environment/recipe/templates/docker_context/kernel/sshd_config'
+    - 'build/'
+    - 'dist/'
+    - 'venv/'
+    - '.venv/'
+    - 'uv.lock'
+    - '.github/**'
+    - '**/*.yaml'
+    - '**/*.yml'
+    - '.licenserc.yaml'
+    - 'AUTHORS'
+    - 'LICENSE'
+    - 'README.md'
+    - 'AGENTS.md'
+    - 'CHANGELOG.md'
+    - 'CODE_OF_CONDUCT.md'
+    - 'CONTRIBUTING.md'
+    - 'PLUGIN_TESTING.md'
+    - 'pyproject.toml'
+    - '.gitignore'
+    - '.pre-commit-config.yaml'
+    - '**/*.json'
+    - '**/*.png'
+    - '**/*.txt'
+
+  comment: on-failure

@@ -1,6 +1,25 @@
-# DataRobot Execution Environment Builder
+<p align="center">
+  <a href="https://github.com/datarobot-oss/dr-environment">
+    <img src="docs/img/datarobot_logo.avif" width="600px" alt="DataRobot Logo"/>
+  </a>
+</p>
+<h3 align="center">DataRobot Execution Environment Builder</h3>
 
-Build Codespace-ready execution environment Docker contexts for DataRobot App Framework recipes. Uses a **customer-buildable Wolfi base** with Python 3.12 and pre-warmed shared **uv**, **npm**, and **Go** dependency caches.
+<p align="center">
+  <a href="https://www.datarobot.com/">Homepage</a>
+  ·
+  <a href="https://docs.datarobot.com/en/docs/workbench/nxt-registry/nxt-custom-envs.html">Documentation</a>
+  ·
+  <a href="https://docs.datarobot.com/en/docs/get-started/troubleshooting/general-help.html">Support</a>
+</p>
+
+<p align="center">
+  <a href="/LICENSE">
+    <img src="https://img.shields.io/github/license/datarobot-oss/dr-environment" alt="License">
+  </a>
+</p>
+
+Build Codespace-ready execution environment Docker contexts for DataRobot App Framework recipes. Uses a **customer-buildable Wolfi base** with Python 3.11 and pre-warmed shared **uv**, **npm**, and **Go** dependency caches.
 
 ## Install
 
@@ -16,7 +35,7 @@ uv tool install -e .
 dr environment recipe --recipe-path datarobot-agent-application
 ```
 
-This writes `docker_context/` in the current working directory (and `agent/docker_context.tar.gz` unless you pass `--no-tarball`).
+This writes `docker_context/` in the current working directory (and `docker_context.tar.gz` unless you pass `--no-tarball`).
 
 2. Change into the generated context:
 
@@ -51,7 +70,7 @@ dr environment recipe --recipe-path /path/to/datarobot-agent-application
 Defaults:
 
 - Output: `docker_context/` in the current working directory
-- Archive: `agent/docker_context.tar.gz`
+- Archive: `docker_context.tar.gz` in the current working directory
 - Versions: `.datarobot/cli/versions.yaml`
 
 ### Options
@@ -116,4 +135,8 @@ pytest
 dr-environment --dr-plugin-manifest
 ```
 
-See [PLUGIN_TESTING.md](PLUGIN_TESTING.md).
+See [PLUGIN_TESTING.md](PLUGIN_TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+Apache 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

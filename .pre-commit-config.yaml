@@ -1,0 +1,49 @@
+---
+# Run the same secret, lint, type and licence gates CI enforces, before the push.
+#   pre-commit install
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.29.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format --force-exclude
+        language: system
+        types: [python]
+
+      - id: ruff-check
+        name: ruff-check
+        entry: uv run ruff check --fix --force-exclude
+        language: system
+        types: [python]
+
+      - id: mypy
+        name: mypy
+        entry: uv run mypy src
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: fix-licenses
+        name: fix-licenses
+        entry: >
+          docker run --rm -v ${PWD}:/github/workspace
+          ghcr.io/apache/skywalking-eyes/license-eye:785bb7f3810572d6912666b4f64bad28e4360799
+          -v info -c .licenserc.yaml header fix
+        language: system
+        pass_filenames: false
