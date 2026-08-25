@@ -16,7 +16,11 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
+
+# A version literal: optional leading `v`, then digits, dots, dashes, plus signs, alphanumerics.
+_VERSION_RE = re.compile(r"v?[0-9][0-9A-Za-z.+-]*")
 
 
 @dataclass(frozen=True)
@@ -52,8 +56,10 @@ _DEFAULTS = {
 
 
 def _minimum_version(versions: dict, tool: str) -> str:
-    raw = versions.get(tool, {}).get("minimum-version", _DEFAULTS[tool])
-    return str(raw)
+    raw = str(versions.get(tool, {}).get("minimum-version", _DEFAULTS[tool]))
+    if not _VERSION_RE.fullmatch(raw):
+        raise ValueError(f"invalid {tool} minimum-version in versions.yaml: {raw!r}")
+    return raw
 
 
 def _release_tag(version: str) -> str:

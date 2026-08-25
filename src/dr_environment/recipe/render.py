@@ -52,7 +52,7 @@ def render_base_fragment(docker_context: Path) -> None:
     content = template.render(
         uv_cache_dir="/opt/cache/uv",
         # Python 3.11, not 3.12, to match the stock "[DataRobot] Python 3.11 GenAI Agents"
-        # environment this image stands in for. On 3.12 deployed NAT/dragent agents
+        # environment this image stands in for. On 3.12 deployed NAT/DRAgent agents
         # crash-loop on boot: uvicorn aliases its `asyncio_run` to `asyncio.run`, which NAT
         # patches via nest_asyncio and cannot patch a uvloop event loop ("Can't patch loop
         # of type uvloop.Loop"). On 3.11 uvicorn uses its own asyncio.Runner-based path that

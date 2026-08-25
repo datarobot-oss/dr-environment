@@ -30,13 +30,13 @@ echo "Persisting container environment variables for sshd..."
     env | grep -E -v "^(PWD=|HOME=|TERM=|SHLVL=|LD_PRELOAD=|PS1=|_=|KUBERNETES_)" | while read -r line; do
       NAME=$(echo "$line" | cut -d'=' -f1)
       VALUE=$(echo "$line" | cut -d'=' -f2-)
-      # Use eval to handle complex cases like export commands with spaces
-      echo "$NAME='$VALUE'"
+      ESCAPED=${VALUE//\'/\'\\\'\'}
+      echo "$NAME='$ESCAPED'"
     done
     echo "set +a"
     # setup the working directory for terminal sessions
     echo "cd $WORKING_DIR"
-} > /etc/profile.d/notebooks-load-env.sh || {
+} > /etc/profile.d/notebooks-load-env.sh && chmod 600 /etc/profile.d/notebooks-load-env.sh || {
     echo "Failed to write /etc/profile.d/notebooks-load-env.sh (check file ownership)" >&2
     return 1
 }

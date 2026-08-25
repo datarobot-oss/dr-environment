@@ -5,7 +5,7 @@
 #
 # Pulumi python runtime with toolchain: uv invokes `uvx pip` to discover requirements;
 # the pip package itself must be present in the cache when UV_OFFLINE=1.
-hatchling
-editables>=0.3,<1.dev0
-setuptools>=61.0
-pip
+hatchling==1.32.0
+editables==0.6
+setuptools==84.0.0
+pip==26.2.1
