@@ -1,0 +1,21 @@
+# Advisory IDs the `audit` CI job skips, one per line. Blank lines and `#` comments ignored.
+#
+# The job fails on any known vulnerability in this project's closure or in either image
+# manifest's resolved closure. Most of those packages are transitive and not pinned here, so an
+# advisory published upstream can turn every open PR red before a fix is available. Listing an ID
+# here unblocks PRs while the bump is worked out; it is not a way to close a finding.
+#
+# Each entry needs the ID, why it is being skipped, and what removes it. Review on every bump.
+#
+# Format:
+#   GHSA-xxxx-xxxx-xxxx  # <package>: <why skipped> - remove when <condition>
+#
+# Example: pip-audit prints the ID and whether a fix exists:
+#
+#   Name     Version  ID                   Fix Versions
+#   -------- -------- -------------------- ------------
+#   urllib3  2.2.1    GHSA-34jh-p97f-mpxf
+#
+# No fix version, and urllib3 is transitive via datarobot, so there is nothing here to bump. Add:
+#
+#   GHSA-34jh-p97f-mpxf  # urllib3 (transitive via datarobot): no fixed release yet - remove when datarobot pins a fixed urllib3
