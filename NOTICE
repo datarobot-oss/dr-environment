@@ -8,18 +8,23 @@ Licensed under the Apache License, Version 2.0 (see LICENSE).
 Third-party components
 --------------------------------------------------------------------------------
 
+Files under src/dr_environment/recipe/templates/docker_context/kernel/ are
+vendored from DataRobot's public datarobot-user-models repository, directory
+public_dropin_environments/python311_genai_agents/, except notebooks-path.sh and
+setup-caches.sh, which are original to this repository.
+
 The execution-environment templates under
 src/dr_environment/recipe/templates/docker_context/ include portions of the
 following third-party works. Each remains under its own license.
 
 1. neptune-client
-   Copyright Neptune Labs
+   Copyright (c) 2019, Neptune Labs Sp. z o.o.
    Licensed under the Apache License, Version 2.0.
    https://github.com/neptune-ai/neptune-client
    Portions reused in kernel/agent/cgroup_watchers.py (cgroup resource sampling).
 
 2. IPython
-   Copyright IPython Development Team
+   Copyright (c) 2008-Present, IPython Development Team
    Licensed under the BSD 3-Clause License.
    https://github.com/ipython/ipython
    Portions reused in kernel/extensions/dataframe_formatter.py, derived from
@@ -30,3 +35,9 @@ following third-party works. Each remains under its own license.
    Licensed under the OpenSSH license (BSD-style).
    https://www.openssh.com/
    kernel/sshd_config is derived from the stock OpenSSH server configuration.
+
+4. opencode
+   Copyright (c) 2025 opencode
+   Licensed under the MIT License.
+   https://github.com/anomalyco/opencode
+   Installed into the image at build time.

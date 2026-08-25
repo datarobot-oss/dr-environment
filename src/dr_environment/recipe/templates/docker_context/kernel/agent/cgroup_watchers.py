@@ -20,6 +20,7 @@ import psutil  # type: ignore
 
 # Parts of this code have been reused from repo:
 # https://github.com/neptune-ai/neptune-client/blob/master/LICENSE
+# Copyright (c) 2019, Neptune Labs Sp. z o.o., licensed under the Apache License, Version 2.0.
 
 NANO_SECS = 10**9
 

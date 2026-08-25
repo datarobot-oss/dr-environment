@@ -16,10 +16,7 @@ Guidelines for developing and contributing to this project.
 
 ## Did you find a bug?
 
-- Do not open up a GitHub issue if the bug is a security
-vulnerability, instead email the maintainers directly or email
-oss-community-management@datarobot.com if they do not respond within
-seven days
+- For a security vulnerability, do not open an issue; see [SECURITY.md](SECURITY.md)
 - Ensure the bug was not already reported in the projects Issues section
 - Open an issue as described above
 

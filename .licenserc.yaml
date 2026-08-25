@@ -55,6 +55,7 @@ header:
     - 'CODE_OF_CONDUCT.md'
     - 'CONTRIBUTING.md'
     - 'PLUGIN_TESTING.md'
+    - 'SECURITY.md'
     - 'pyproject.toml'
     - '.gitignore'
     - '.pre-commit-config.yaml'
