@@ -1,4 +1,4 @@
-datarobot==3.17.0
+datarobot==3.18.0
 ecs-logging==2.2.0
 gunicorn==26.0.0
 ipykernel==6.28.0

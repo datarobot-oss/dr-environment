@@ -137,3 +137,44 @@ jobs:
           docker run --rm -v "$(pwd)":/github/workspace \
             ghcr.io/apache/skywalking-eyes/license-eye:785bb7f3810572d6912666b4f64bad28e4360799 \
             -v info -c .licenserc.yaml header check
+
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39  # v3
+
+      # Covers this project's own dependencies and the two pinned manifests that are baked
+      # into every generated image, which Dependabot's uv ecosystem cannot read.
+      - name: Audit dependencies for known CVEs
+        run: |
+          # Advisories listed in .github/pip-audit-ignore.txt are skipped, so a CVE with no fix
+          # available yet does not block every open PR. That file carries the rationale per entry.
+          IDS=()
+          while read -r id _; do
+            [ -n "$id" ] && IDS+=("$id")
+          done < <(sed 's/#.*//' .github/pip-audit-ignore.txt | grep -vE '^[[:space:]]*$')
+          IGNORE=()
+          for id in "${IDS[@]}"; do IGNORE+=(--ignore-vuln "$id"); done
+          echo "Skipping ${#IDS[@]} advisory ID(s) from .github/pip-audit-ignore.txt"
+          # uv.lock already resolves this project's full closure, so export and audit directly.
+          uv export --frozen --no-hashes --no-dev --no-emit-project -o "${RUNNER_TEMP}/project.txt"
+          echo "::group::pip-audit project"
+          uvx pip-audit==2.9.0 --disable-pip --no-deps "${IGNORE[@]}" -r "${RUNNER_TEMP}/project.txt"
+          echo "::endgroup::"
+          # The image manifests list direct pins only, but the build installs their transitive
+          # closures. Resolve each against the image's Python before auditing, or CVEs in
+          # transitive packages ship without failing CI.
+          for f in src/dr_environment/recipe/templates/docker_context/kernel/requirements.txt \
+                   src/dr_environment/recipe/templates/docker_context/build-deps/build-requirements.txt; do
+            resolved="${RUNNER_TEMP}/$(basename "$f").resolved.txt"
+            uv pip compile --python-version 3.11 --no-header --no-annotate -o "$resolved" "$f"
+            echo "::group::pip-audit $f"
+            uvx pip-audit==2.9.0 --disable-pip --no-deps "${IGNORE[@]}" -r "$resolved"
+            echo "::endgroup::"
+          done

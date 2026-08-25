@@ -1,5 +1,7 @@
 # dr-environment — Agent Guide
 
+> Contributor documentation: this describes working **on** this repo, not using the environment it builds.
+
 DataRobot CLI plugin that builds **Codespace-ready execution environment Docker contexts** for App Framework recipes (e.g. `datarobot-agent-application`). Output is a customer-buildable Wolfi image with pre-warmed **uv**, **npm**, and **Go** caches for offline use in DataRobot notebooks.
 
 ## Quick commands
@@ -27,7 +29,7 @@ docker build --platform linux/amd64 -t exec-env .
 1. Discovers components from the recipe root `Taskfile.yml` `includes`
 2. Validates lockfiles (fail-fast on missing/stale)
 3. Copies per-component manifests into `components/<name>/` (no dependency merging)
-4. Renders Dockerfile fragments (base → per-component cache stages → kernel)
+4. Renders Dockerfile fragments (base → user → versions → build-deps → kernel → per-component cache stages → offline)
 5. Assembles `Dockerfile` from sorted `dockerfile.d/*.fragment`
 6. Optionally creates `docker_context.tar.gz` in the CWD
 
@@ -38,21 +40,28 @@ The generated image runs as the `notebooks` user, boots Jupyter Kernel Gateway, 
 ```
 src/dr_environment/
 ├── cli.py              # Click CLI; handles --dr-plugin-manifest before Click
-├── build.py            # Orchestrates the full docker context build
-├── discover.py         # Parse recipe Taskfile includes → Component list
-├── validate.py         # Lockfile checks (uv lock --check, npm ci --dry-run, go mod verify)
-├── layout.py           # Copy manifests; strip local `core` package from pyproject.toml
-├── hooks.py            # Run component `task environment` hooks
-├── render.py           # Jinja templates + static copy + Dockerfile assembly
-├── models.py           # Component, Ecosystem, ComponentStrategy enums
-└── cache/
-    └── stages.py       # Generate per-component Dockerfile cache fragments
+└── recipe/
+    ├── build.py        # Orchestrates the full docker context build
+    ├── discover.py     # Parse recipe Taskfile includes → Component list
+    ├── validate.py     # Lockfile checks (uv lock --check, npm ci --dry-run, go mod verify)
+    ├── layout.py       # Copy manifests; strip local `core` package from pyproject.toml
+    ├── hooks.py        # Run component `task environment` hooks
+    ├── render.py       # Jinja templates + asset copy + Dockerfile assembly
+    ├── versions.py     # Read recipe versions.yaml; defaults for unlisted tools
+    ├── manifests.py    # Locate a component's manifest files
+    ├── models.py       # Component, Ecosystem, ComponentStrategy enums
+    └── cache/
+        └── stages.py   # Generate per-component Dockerfile cache fragments
 
-src/dr_environment/templates/docker_context/
-├── 00-base.fragment.j2       # Wolfi base + kernel venv + runtime scripts
-├── 99-kernel.fragment.j2     # dr CLI, Pulumi, opencode, offline env vars
+src/dr_environment/recipe/templates/docker_context/
+├── 00-base.fragment.j2       # Wolfi base (digest-pinned) + CPython apk layers
+├── 01-user.fragment.j2       # `notebooks` user, uid/gid 10101
+├── 02-versions.fragment.j2   # uv, task, node, dr CLI, Pulumi, opencode, Agent Assist
+├── 03-build-deps.fragment.j2 # Build-time dependency manifests
+├── 04-kernel.fragment.j2     # Kernel venv, Jupyter assets, runtime scripts
+├── 99-offline.fragment.j2    # cache-perms stage, offline env vars, model entrypoint
 ├── kernel/requirements.txt   # Kernel-only deps (NOT recipe component deps)
-└── static/                   # Copied verbatim into docker_context root
+└── build-deps/, kernel/      # render.py:FRAGMENT_ASSET_DIRS, copied in as directories
 
 tests/                  # pytest unit tests (no Docker integration tests yet)
 ```
@@ -63,14 +72,14 @@ tests/                  # pytest unit tests (no Docker integration tests yet)
 flowchart TD
     A[recipe Taskfile includes] --> B[discover_components]
     B --> C[validate_all lockfiles]
-    C --> D[copy_static_template]
-    D --> E[render_base_fragment]
+    C --> D[copy_fragment_assets]
+    D --> E[render base/user/versions/build-deps/kernel fragments]
     E --> F{per component}
     F -->|HOOK| G[task environment]
     F -->|DEFAULT| H[layout_components copy manifests]
     G --> I[write_component_cache_fragments]
     H --> I
-    I --> J[render_kernel_fragment]
+    I --> J[render_offline_fragment]
     J --> K[assemble_dockerfile]
 ```
 
@@ -85,10 +94,11 @@ flowchart TD
 ### Dockerfile stage chain
 
 ```
-wolfi_python_dev → base → cache-<component1> → cache-<component2> → … → kernel
+wolfi_python_dev → base → user → versions → build-deps → kernel
+  → cache-<component1> → … → cache-perms;  offline is FROM kernel + COPY --from=cache-perms
 ```
 
-Fragments are named `{order:02d}-cache-{name}.fragment` and concatenated in sorted order with `00-base` and `99-kernel`.
+Fragments are named `{component.fragment_order:02d}-cache-{name}.fragment` and concatenated in sorted order between `04-kernel` and `99-offline`.
 
 ## Design constraints (do not violate)
 
@@ -98,7 +108,7 @@ Never parse or merge component `pyproject.toml` files. Each component's manifest
 
 ### Kernel vs component deps
 
-- **Kernel**: `kernel/requirements.txt` — flat pinned list for Jupyter/Kernel Gateway only. Installed in base stage venv (`/etc/system/kernel/.venv`). No root `pyproject.toml` in docker context.
+- **Kernel**: `kernel/requirements.txt`, a flat pinned list for Jupyter/Kernel Gateway only. Installed in the `kernel` stage (`04-kernel.fragment.j2`) into `/etc/system/kernel/.venv`. No root `pyproject.toml` in docker context.
 - **Components**: each has its own `pyproject.toml` + `uv.lock` under `components/<name>/`.
 
 ### Local `core` package convention
@@ -112,26 +122,24 @@ The `core` component itself is copied and cached normally.
 
 ### Cache warming must use `uv sync`, not `uv pip install`
 
-**Critical:** `uv export` + `uv pip install` populates wheels but **does not** satisfy `uv sync --offline` at runtime (lockfile-specific platform wheels like `litellm` cp312-manylinux fail).
+**Critical:** `uv export` + `uv pip install` populates wheels but **does not** satisfy `uv sync --offline` at runtime (lockfile-specific platform wheels like `litellm` cp311-manylinux fail).
 
 Cache stages must use:
 
 ```dockerfile
-uv sync --frozen --no-install-project --python-platform x86_64-manylinux_2_28 \
+uv sync --frozen --no-install-project --all-extras --all-groups \
     --python ${VENV_PATH}/bin/python
 ```
 
-With `--no-install-package core` for non-core components. Do **not** use `uv pip download` (does not exist).
+With `--no-install-package core` for non-core components. Do **not** use `uv pip download` (does not exist). Do **not** add `--python-platform`.
 
 ### Platform: always linux/amd64
 
-DataRobot notebook kernels run on **linux/amd64**. The base template pins `FROM --platform=linux/amd64`. Users on Apple Silicon must pass `--platform linux/amd64` when building. An arm64 image fails with `exec format error` on `start_server.sh`.
-
-`PYTHON_PLATFORM = "x86_64-manylinux_2_28"` in `cache/stages.py` must stay aligned with the image platform.
+DataRobot notebook kernels run on **linux/amd64**. The base template builds `FROM --platform=${TARGETPLATFORM}`, which `render.py` sets to `linux/amd64`. Users on Apple Silicon must pass `--platform linux/amd64` when building. An arm64 image fails with `exec format error` on `start_server.sh`.
 
 ### Offline runtime
 
-The kernel stage sets:
+The final `offline` stage (`99-offline.fragment.j2`) sets:
 
 ```
 UV_OFFLINE=1
@@ -145,36 +153,38 @@ Caches live at `/opt/cache/uv`, `/opt/cache/npm`, `/opt/cache/go/`. `setup-cache
 
 Recipe `.datarobot/cli/versions.yaml` drives:
 
-- `dr` CLI version (base/kernel template → `CLI_VERSION`)
-- `pulumi` version (kernel stage installs via `get.pulumi.com`)
+- `dr` CLI version (`02-versions.fragment.j2` → `CLI_VERSION`)
+- `pulumi` version (the `versions` stage installs via `get.pulumi.com`)
 
-Other tools in `versions.yaml` (`uv`, `node`, `git`, `task`) are validated by `dr self check` at runtime. Base image installs them via Wolfi packages (`apk add task uv nodejs npm git`). If version mismatches appear, pin from `versions.yaml` explicitly.
+`versions.py` falls back to `_DEFAULTS` for anything a recipe does not list. The `versions` stage installs `uv` and `task` from their upstream install scripts and `node` and the `dr` CLI from release tarballs; of these tools only `git` comes from a Wolfi apk (`02-versions`; the `00-base` toolchain layer already pulls it in).
 
 ### COPY ownership in cache stages
 
-Cache stage `COPY` uses `--chown=notebooks:notebooks` because the base stage ends with `USER notebooks`. Without this, cache writes fail with permission denied.
+Cache stage `COPY` uses `--chown=notebooks:notebooks` because cache stages build `FROM kernel`, and the `kernel` stage ends with `USER $UNAME` (`notebooks`). Without this, cache writes fail with permission denied.
 
 ## Key files to edit
 
 | Change | File(s) |
 |--------|---------|
 | CLI options / entrypoint | `src/dr_environment/cli.py` |
-| Build orchestration | `src/dr_environment/build.py` |
-| Python/npm/go cache Dockerfile lines | `src/dr_environment/cache/stages.py` |
-| Wolfi base image, kernel venv, scripts | `templates/docker_context/00-base.fragment.j2` |
-| dr CLI, Pulumi, offline env | `templates/docker_context/99-kernel.fragment.j2` |
-| Kernel Jupyter deps | `templates/docker_context/kernel/requirements.txt` |
-| Runtime shell scripts | `templates/docker_context/static/` |
-| `core` stripping logic | `src/dr_environment/layout.py` |
-| Lockfile validation rules | `src/dr_environment/validate.py` |
-| Component discovery | `src/dr_environment/discover.py` |
-| Hook env contract | `src/dr_environment/hooks.py` |
+| Build orchestration | `recipe/build.py` |
+| Python/npm/go cache Dockerfile lines | `recipe/cache/stages.py` |
+| Wolfi base image, apk layers | `recipe/templates/docker_context/00-base.fragment.j2` |
+| dr CLI, Pulumi, tool versions | `recipe/templates/docker_context/02-versions.fragment.j2` |
+| Kernel venv, Jupyter assets | `recipe/templates/docker_context/04-kernel.fragment.j2` |
+| Offline env, cache perms, model entrypoint | `recipe/templates/docker_context/99-offline.fragment.j2` |
+| Kernel Jupyter deps | `recipe/templates/docker_context/kernel/requirements.txt` |
+| Runtime shell scripts | `recipe/templates/docker_context/kernel/` |
+| `core` stripping logic | `recipe/layout.py` |
+| Lockfile validation rules | `recipe/validate.py` |
+| Component discovery | `recipe/discover.py` |
+| Hook env contract | `recipe/hooks.py` |
 
 ## Testing
 
 ```bash
 uv pip install -e ".[dev]"
-pytest                    # 13 unit tests
+pytest
 dr-environment --dr-plugin-manifest
 ```
 
@@ -194,7 +204,7 @@ There are no Docker build integration tests in CI yet. Manually verify with `doc
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `exec format error` on `start_server.sh` | arm64 image on amd64 cluster | Rebuild with `--platform linux/amd64` |
-| `Missing required tools: Pulumi` | Pulumi not in image | Ensure `versions.yaml` has `pulumi.minimum-version`; kernel stage installs it |
+| `Missing required tools: Pulumi` | Pulumi not in image | Ensure `versions.yaml` has `pulumi.minimum-version`; the `versions` stage installs it |
 | `Failed to download litellm` with `UV_OFFLINE=1` | Cache warmed with `uv pip install` instead of `uv sync` | Use `uv sync --frozen --no-install-project` in cache stages |
 | `sed: setup-ssh.sh: No such file` in Docker build | CRLF `sed` runs before scripts are COPY'd | Run `sed` after all shell script COPYs |
 | Cache permission denied | COPY as root, RUN as notebooks | Use `COPY --chown=notebooks:notebooks` |
@@ -217,7 +227,8 @@ The hook is responsible for copying files and appending its Dockerfile fragment.
 ## Reference implementations
 
 - **Base image**: public `cgr.dev/chainguard/wolfi-base`
-- **Upstream kernel base**: [datarobot-user-models](https://github.com/datarobot/datarobot-user-models) `public_dropin_notebook_environments/python313_notebook/Dockerfile`
+- **Wolfi apk layers**: [datarobot-user-models](https://github.com/datarobot/datarobot-user-models) `public_dropin_notebook_environments/python313_notebook/Dockerfile`
+- **Vendored `kernel/` scripts**: same repo, `public_dropin_environments/python311_genai_agents/`
 - **Application devcontainer** (Pulumi, `dr` CLI patterns): [datarobot-agent-application](https://github.com/datarobot-community/datarobot-agent-application) `.devcontainer/Dockerfile`
 - **versions.yaml tool checks**: the application's `.datarobot/cli/versions.yaml`
 

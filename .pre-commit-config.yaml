@@ -1,14 +1,15 @@
 ---
 # Run the same secret, lint, type and licence gates CI enforces, before the push.
 #   pre-commit install
+# Hook revs are frozen to commit SHAs; refresh them with `pre-commit autoupdate --freeze`.
 repos:
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.29.1
+    rev: fb5d707e08fe0d2578b155458fdd53b6782dcab2  # frozen: v8.29.1
     hooks:
       - id: gitleaks
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
       - id: detect-private-key
       - id: check-added-large-files
@@ -42,8 +43,8 @@ repos:
       - id: fix-licenses
         name: fix-licenses
         entry: >
-          docker run --rm -v ${PWD}:/github/workspace
+          bash -c 'docker run --rm -v "$PWD":/github/workspace
           ghcr.io/apache/skywalking-eyes/license-eye:785bb7f3810572d6912666b4f64bad28e4360799
-          -v info -c .licenserc.yaml header fix
+          -v info -c .licenserc.yaml header fix'
         language: system
         pass_filenames: false

@@ -14,6 +14,8 @@
 # limitations under the License.
 from pathlib import Path
 
+import pytest
+
 from dr_environment.recipe.render import (
     assemble_dockerfile,
     copy_fragment_assets,
@@ -24,7 +26,7 @@ from dr_environment.recipe.render import (
     render_versions_fragment,
     template_root,
 )
-from dr_environment.recipe.versions import parse_tool_versions
+from dr_environment.recipe.versions import _DEFAULTS, parse_tool_versions
 
 
 def test_assemble_dockerfile_orders_fragments(tmp_path: Path) -> None:
@@ -77,6 +79,34 @@ def test_render_user_fragment(tmp_path: Path) -> None:
     assert "adduser" in content
     assert "USER $UNAME" in content
     assert "HOME=/home/notebooks" in content
+
+
+def test_kernel_datarobot_pin_matches_versions_default() -> None:
+    """The kernel venv pin must not fall below the floor the image installs the SDK from."""
+    reqs = template_root() / "kernel" / "requirements.txt"
+    pinned = next(
+        line.split("==", 1)[1].strip()
+        for line in reqs.read_text(encoding="utf-8").splitlines()
+        if line.startswith("datarobot==")
+    )
+    default = _DEFAULTS["datarobot"]
+
+    def parts(v: str) -> list[int]:
+        return [int(x) for x in v.split(".") if x.isdigit()]
+
+    assert parts(pinned)[: len(parts(default))] >= parts(default), (
+        f"kernel requirements pin datarobot=={pinned}, "
+        f"but versions.py installs datarobot>={default}"
+    )
+
+
+def test_render_versions_fragment_rejects_non_version_value(tmp_path: Path) -> None:
+    docker_context = tmp_path / "ctx"
+    (docker_context / "dockerfile.d").mkdir(parents=True)
+    versions = {"uv": {"minimum-version": "0.9.0\nRUN echo injected"}}
+
+    with pytest.raises(ValueError, match="invalid uv minimum-version"):
+        render_versions_fragment(docker_context, versions)
 
 
 def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
@@ -178,6 +208,11 @@ def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) 
         "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/npm /opt/cache/npm"
         in content
     )
+    # The cache and venv modes govern whether a deployed model (a different uid) can write to
+    # them, so assert them: a wrong mode here breaks every generated image.
+    assert "RUN chmod -R a+rwX /opt/cache/uv" in content
+    assert "RUN chmod 0777 /opt/cache/uv" in content
+    assert "chmod a+rwx /opt/venv" in content
     assert (
         "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/go /opt/cache/go" in content
     )

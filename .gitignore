@@ -210,3 +210,8 @@ __marimo__/
 
 # deepeval local state
 .deepeval/
+
+# generated execution-environment context and images
+/docker_context/
+/docker_context.tar.gz
+/image.tar

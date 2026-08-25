@@ -36,7 +36,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # hadolint ignore=DL3018,DL3059
 RUN apk add --no-cache git
 
-# TEMPORARY WORKAROUND: bundle the GitHub CLI. Remove once it is no longer needed.
+# GitHub CLI, for offline use. A stopgap: not version-managed like the tools below. Drop when unused.
 # hadolint ignore=DL3018,DL3059
 RUN apk add --no-cache gh
 
@@ -85,7 +85,8 @@ RUN venv=/tmp/copier-wheelhouse-warm \
 RUN uv tool install --force "datarobot[core]>={{ datarobot_version }}"
 
 # versions.yaml — task ({{ task_version }})
-RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /home/notebooks/.local/bin v{{ task_version }}
+RUN curl --fail --silent --show-error --location https://taskfile.dev/install.sh \
+    | sh -s -- -d -b /home/notebooks/.local/bin v{{ task_version }}
 
 # versions.yaml — node ({{ node_version }})
 RUN mkdir -p /home/notebooks/.local \

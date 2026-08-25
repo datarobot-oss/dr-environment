@@ -11,6 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Portions of this file are derived from IPython (JSONFormatter), used under the BSD
+# 3-Clause License. Copyright (c) 2008-Present, IPython Development Team. See the
+# IPython entry in NOTICE.
 
 
 # -*- coding: utf-8 -*-

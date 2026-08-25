@@ -34,6 +34,14 @@ MANIFEST_SPECS: tuple[tuple[str, str, Ecosystem, str], ...] = (
     ("go.mod", "go.sum", Ecosystem.GO, "go mod tidy"),
 )
 
+# Each ecosystem is validated with its own native tool, so a recipe pulls in whichever of these its
+# components use. Point the user at the installer rather than leaking a bare FileNotFoundError.
+TOOL_INSTALL_HINTS: dict[str, str] = {
+    "uv": "https://docs.astral.sh/uv/getting-started/installation/",
+    "npm": "https://nodejs.org/en/download",
+    "go": "https://go.dev/dl/",
+}
+
 
 class ValidationError(Exception):
     """Raised when a component fails lockfile validation."""
@@ -45,7 +53,7 @@ class ValidationError(Exception):
 
 
 def inspect_component(component: Component) -> list[ManifestInfo]:
-    """Detect manifests and lockfile status without raising."""
+    """Detect manifests and lockfile status; only a missing validation tool raises."""
     manifests: list[ManifestInfo] = []
     for manifest_name, lock_name, ecosystem, _fix in MANIFEST_SPECS:
         manifest = find_manifest_file(component.source_dir, manifest_name)
@@ -101,6 +109,26 @@ def validate_all(components: list[Component]) -> None:
         raise ValidationError(errors)
 
 
+def _run_check(cmd: list[str], cwd: Path) -> int:
+    """Run a lockfile check and return its exit code; raise if the tool is not installed."""
+    tool = cmd[0]
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,  # the returncode is the signal we want, not an exception
+        )
+    except FileNotFoundError as exc:
+        hint = TOOL_INSTALL_HINTS.get(tool)
+        message = f"ERROR: '{tool}' is required to validate '{cwd.name}' but is not installed"
+        if hint:
+            message = f"{message}\n  Install: {hint}"
+        raise ValidationError([message]) from exc
+    return result.returncode
+
+
 def _check_lockfile(
     manifest: Path,
     lockfile: Path,
@@ -113,39 +141,18 @@ def _check_lockfile(
         )
 
     if ecosystem == Ecosystem.PYTHON:
-        result = subprocess.run(
-            ["uv", "lock", "--check"],
-            cwd=manifest.parent,
-            capture_output=True,
-            text=True,
-            check=False,  # the returncode is the signal we want, not an exception
-        )
-        if result.returncode != 0:
+        if _run_check(["uv", "lock", "--check"], manifest.parent) != 0:
             return LockfileStatus.STALE, "has out-of-date uv.lock (uv lock --check failed)"
 
     elif ecosystem == Ecosystem.NPM:
-        result = subprocess.run(
-            ["npm", "ci", "--dry-run", "--ignore-scripts"],
-            cwd=manifest.parent,
-            capture_output=True,
-            text=True,
-            check=False,  # the returncode is the signal we want, not an exception
-        )
-        if result.returncode != 0:
+        if _run_check(["npm", "ci", "--dry-run", "--ignore-scripts"], manifest.parent) != 0:
             return (
                 LockfileStatus.STALE,
                 "has out-of-date package-lock.json (npm ci --dry-run failed)",
             )
 
     elif ecosystem == Ecosystem.GO:
-        result = subprocess.run(
-            ["go", "mod", "verify"],
-            cwd=manifest.parent,
-            capture_output=True,
-            text=True,
-            check=False,  # the returncode is the signal we want, not an exception
-        )
-        if result.returncode != 0:
+        if _run_check(["go", "mod", "verify"], manifest.parent) != 0:
             return LockfileStatus.STALE, "has invalid go.sum (go mod verify failed)"
 
     return LockfileStatus.OK, ""
