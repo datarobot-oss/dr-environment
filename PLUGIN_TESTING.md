@@ -1,5 +1,7 @@
 # Plugin Testing Guide
 
+> Contributor documentation: this describes verifying changes **to** this repo.
+
 ## Installation
 
 ```bash
@@ -56,7 +58,7 @@ NPM_CONFIG_OFFLINE=true
 GOPROXY=off
 ```
 
-Verify `start_server_custom_model.sh` is **not** copied (Codespaces-only image uses `start_server_codespaces.sh` from the base stage).
+Verify `kernel/start_server_custom_model.sh` is copied to `/opt/code/start_server.sh`. DataRobot builds each deployed model FROM this image and runs that path; Codespaces sessions use `start_server_codespaces.sh` instead.
 
 ## Component hook
 

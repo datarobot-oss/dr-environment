@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/datarobot-oss/dr-environment">
+  <a href="https://github.com/datarobot-community/dr-environment">
     <img src="docs/img/datarobot_logo.avif" width="600px" alt="DataRobot Logo"/>
   </a>
 </p>
@@ -8,22 +8,52 @@
 <p align="center">
   <a href="https://www.datarobot.com/">Homepage</a>
   ·
-  <a href="https://docs.datarobot.com/en/docs/workbench/nxt-registry/nxt-custom-envs.html">Documentation</a>
+  <a href="https://docs.datarobot.com/en/docs/workbench/nxt-registry/nxt-environment-workshop/nxt-add-custom-env.html">Documentation</a>
   ·
   <a href="https://docs.datarobot.com/en/docs/get-started/troubleshooting/general-help.html">Support</a>
 </p>
 
 <p align="center">
-  <a href="/LICENSE">
-    <img src="https://img.shields.io/github/license/datarobot-oss/dr-environment" alt="License">
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0">
   </a>
 </p>
 
 Build Codespace-ready execution environment Docker contexts for DataRobot App Framework recipes. Uses a **customer-buildable Wolfi base** with Python 3.11 and pre-warmed shared **uv**, **npm**, and **Go** dependency caches.
 
+> [!NOTE]
+> Early development (`0.1.0`). The generated Dockerfile and the CLI flags may change between
+> releases. Released under DataRobot's open-source program; it does not carry an official support
+> SLA. See [SECURITY.md](SECURITY.md).
+
+## How this relates to DataRobot custom environments
+
+The built-in environments in DataRobot Registry are the supported default, and the stock
+`[DataRobot] Python 3.11 GenAI Agents` environment is the right choice for most projects. This tool
+covers the air-gapped case: it produces an environment with every dependency cache baked in, so the
+image runs with no network access. Its output is uploaded through the same custom execution
+environment flow as any other image.
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-started/get-docker/)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- The `dr` CLI, which hosts this plugin:
+
+```bash
+curl https://cli.datarobot.com/install | sh
+# or: brew install datarobot-oss/taps/dr-cli
+```
+
+Lockfile validation runs each ecosystem's own tool, so a recipe may also need
+[Node.js](https://nodejs.org/en/download) for a `package.json`, [Go](https://go.dev/dl/) for a
+`go.mod`, or [Task](https://taskfile.dev/installation/) for an `environment` hook.
+
 ## Install
 
 ```bash
+git clone https://github.com/datarobot-community/dr-environment.git
+cd dr-environment
 uv tool install -e .
 ```
 
@@ -69,7 +99,7 @@ dr environment recipe --recipe-path /path/to/datarobot-agent-application
 
 Defaults:
 
-- Output: `docker_context/` in the current working directory
+- Output: `docker_context/` in the current working directory (override with `--target`)
 - Archive: `docker_context.tar.gz` in the current working directory
 - Versions: `.datarobot/cli/versions.yaml`
 
@@ -84,11 +114,14 @@ dr environment recipe --recipe-path . --no-tarball
 ```
 docker_context/
 ├── Dockerfile                 # assembled from dockerfile.d/*
-├── dockerfile.d/
-├── kernel/requirements.txt    # kernel-only deps (no root pyproject.toml)
-├── components/<name>/         # copied manifests per recipe component
-├── setup-caches.sh
-└── ...                        # drop-in entrypoint scripts
+├── dockerfile.d/              # one fragment per build stage
+├── build-deps/                # build-time manifests
+├── kernel/                    # kernel deps, entrypoints, Jupyter assets
+│   ├── requirements.txt       # kernel-only deps
+│   ├── setup-caches.sh        # offline cache paths for login shells
+│   ├── start_server_*.sh      # Codespaces and deployed-model entrypoints
+│   └── agent/, extensions/    # kernel assets
+└── components/<name>/         # per-component manifests
 ```
 
 ## Lockfile policy
@@ -140,3 +173,7 @@ See [PLUGIN_TESTING.md](PLUGIN_TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+That grant covers this repository's own code. It does not extend to the components the generated
+image fetches at build time, which keep their own terms, including Wolfi apk packages under GPL-2.0
+and GPL-3.0, and the DataRobot Python SDK under the DataRobot Tool and Utility Agreement.
