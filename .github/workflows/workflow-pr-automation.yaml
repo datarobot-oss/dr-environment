@@ -1,13 +1,19 @@
 name: PR Automation
 
-# Reviewer-facing helpers: labels approved pull requests `00 - Reviewed`, and
-# comments a link to any Jira ticket named in the title or branch.
+# Reviewer-facing helpers: labels approved pull requests `00 - Reviewed`, comments a
+# Jira link, and posts to Slack. Both Slack jobs need `SLACK_WEBHOOK_URL`.
 
 on:
   pull_request_review:
     types: [submitted]
   pull_request:
-    types: [opened, edited]
+    types: [opened, edited, labeled]
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   # On an approving review: label the PR "00 - Reviewed".
@@ -16,6 +22,23 @@ jobs:
     uses: datarobot-oss/github-actions/.github/workflows/mark-pr-reviewed.yaml@0.0.24
     with:
       pr_number: ${{ github.event.pull_request.number }}
+    permissions:
+      pull-requests: write
+
+  # On the `00 - Ready for Review` label: announce the pull request in Slack.
+  notify-ready-for-review:
+    if: github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '00 - Ready for Review'
+    uses: datarobot-oss/github-actions/.github/workflows/mark-pr-to-review.yaml@0.0.24
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      pr_url: ${{ github.event.pull_request.html_url }}
+      pr_title: ${{ github.event.pull_request.title }}
+      pr_author: ${{ github.event.pull_request.user.login }}
+      pr_additions: ${{ github.event.pull_request.additions }}
+      pr_deletions: ${{ github.event.pull_request.deletions }}
+      repo_name: ${{ github.repository }}
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     permissions:
       pull-requests: write
 
@@ -30,3 +53,14 @@ jobs:
       pr_branch: ${{ github.head_ref }}
     permissions:
       pull-requests: write
+
+  # On schedule or dispatch: post a digest of what is still awaiting review.
+  notify-slack-digest:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    uses: datarobot-oss/github-actions/.github/workflows/notify-slack.yaml@0.0.24
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: read
