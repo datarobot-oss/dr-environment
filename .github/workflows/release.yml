@@ -1,13 +1,14 @@
 name: Release
 
 # Tags the version `pyproject.toml` declares and publishes that build to PyPI.
-# Recover a failed publish with "Re-run failed jobs"; "Re-run all jobs" discards the
-# artifact, re-finds the tag, and silently skips publishing.
+# Recover a failed publish with "Re-run failed jobs", never "Re-run all jobs": the tag
+# already exists by then, so the publish is skipped rather than retried.
 on:
   push:
     branches: [ main ]
 
-# `cancel-in-progress: false` so a second merge waits, then finds this run's tag.
+# `cancel-in-progress: false` so a second merge waits, then finds this run's tag. Only one
+# run queues, so a third merge inside one release evicts the second; re-run it on that sha.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -27,6 +28,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
 
       - name: Read version from pyproject.toml
         id: version

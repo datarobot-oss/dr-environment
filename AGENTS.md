@@ -239,7 +239,7 @@ The hook is responsible for copying files and appending its Dockerfile fragment.
 - Do not add a root `pyproject.toml` to docker context output
 - Do not merge or parse component dependencies across components
 - Comments only for non-obvious business logic
-- Bump `[project].version` in `pyproject.toml` when changing what ships, and file the `CHANGELOG.md` entry under that version
+- Bump `[project].version` in `pyproject.toml` when changing what ships, run `uv lock`, and file the `CHANGELOG.md` entry under that version
 - Run `pytest` before finishing
 
 ## Plugin integration

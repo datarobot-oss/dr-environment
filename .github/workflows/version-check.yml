@@ -30,14 +30,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          # In the step, not a job-level `if`: a skipped job gives branch protection no conclusion.
+          # In the step, not a job-level `if`: branch protection counts a skipped job as
+          # passing, so the waiver has to run and report rather than skip.
           if [ "$SKIP" = 'true' ]; then
             echo "Waived by skip-version-bump."
             exit 0
           fi
 
           # Paths that reach a consumer; `pyproject.toml` because its metadata ships in METADATA.
-          # Here-string, not a pipe: `grep -q` exits early and SIGPIPEs the writer under `pipefail`.
           CHANGED="$(git -c core.quotePath=false diff --name-only --no-renames "${BASE}...HEAD")"
           if ! grep -qE '^(src/|pyproject\.toml$|README\.md$|LICENSE$|NOTICE$|AUTHORS$)' <<<"$CHANGED"; then
             echo "Nothing that ships changed."
