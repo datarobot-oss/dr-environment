@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/datarobot-community/dr-environment">
+  <a href="https://github.com/datarobot-oss/dr-environment">
     <img src="docs/img/datarobot_logo.avif" width="600px" alt="DataRobot Logo"/>
   </a>
 </p>
@@ -52,7 +52,7 @@ Lockfile validation runs each ecosystem's own tool, so a recipe may also need
 ## Install
 
 ```bash
-git clone https://github.com/datarobot-community/dr-environment.git
+git clone https://github.com/datarobot-oss/dr-environment.git
 cd dr-environment
 uv tool install -e .
 ```

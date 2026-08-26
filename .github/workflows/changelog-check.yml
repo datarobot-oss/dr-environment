@@ -1,0 +1,24 @@
+name: Changelog
+
+# Fails a pull request that did not update CHANGELOG.md. Waivable per pull
+# request with the `skip-changelog` label, and skipped for bot authors, since
+# Dependabot cannot edit a changelog and this repo takes weekly bumps.
+
+# `labeled` and `unlabeled` are named because listing any type replaces the
+# defaults; without them the skip label cannot re-run the check that demanded it.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    uses: datarobot-oss/github-actions/.github/workflows/check-changelog.yaml@0.0.24
+    permissions:
+      contents: read
+    with:
+      changelog_path: CHANGELOG.md
+      skip_label: skip-changelog
+      skip_bot_authors: true

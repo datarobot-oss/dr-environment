@@ -1,0 +1,32 @@
+name: PR Automation
+
+# Reviewer-facing helpers: labels approved pull requests `00 - Reviewed`, and
+# comments a link to any Jira ticket named in the title or branch.
+
+on:
+  pull_request_review:
+    types: [submitted]
+  pull_request:
+    types: [opened, edited]
+
+jobs:
+  # On an approving review: label the PR "00 - Reviewed".
+  mark-reviewed:
+    if: github.event_name == 'pull_request_review' && github.event.review.state == 'approved'
+    uses: datarobot-oss/github-actions/.github/workflows/mark-pr-reviewed.yaml@0.0.24
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+    permissions:
+      pull-requests: write
+
+  # On PR open/edit: comment a link to any Jira ticket in the title or branch.
+  add-jira-link:
+    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'edited')
+    uses: datarobot-oss/github-actions/.github/workflows/add-jira-link.yaml@0.0.24
+    with:
+      jira_base_url: 'https://datarobot.atlassian.net/browse'
+      pr_title: ${{ github.event.pull_request.title }}
+      pr_number: ${{ github.event.pull_request.number }}
+      pr_branch: ${{ github.head_ref }}
+    permissions:
+      pull-requests: write
