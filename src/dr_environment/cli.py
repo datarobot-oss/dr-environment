@@ -44,6 +44,7 @@ def print_manifest() -> None:
 
 
 @click.group()
+@click.version_option(_package_version(), "--version")
 def cli() -> None:
     """Build DataRobot execution environment Docker contexts."""
 

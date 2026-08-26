@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from importlib.metadata import version
+
 from click.testing import CliRunner
 
 from dr_environment.cli import cli
@@ -31,3 +33,10 @@ def test_recipe_help() -> None:
     assert "--recipe-path" in result.output
     assert "--target" in result.output
     assert "--no-tarball" in result.output
+
+
+def test_version_reports_installed_metadata() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--version"])
+    assert result.exit_code == 0
+    assert version("dr-environment") in result.output
