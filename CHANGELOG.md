@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.2
+- Bump `ruff` from 0.16.3 to 0.16.4.
+
 ## 0.1.1
 - Bump CI GitHub Actions: `actions/checkout` to 7.0.1, `actions/setup-python` to 7.0.0, `astral-sh/setup-uv` to 10.0.1, `actions/cache` to 6.1.0, `actions/upload-artifact` to 7.0.1, `actions/download-artifact` to 8.0.1.
 
