@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.3
+- Bump kernel `ecs-logging` from 2.2.0 to 2.3.0.
+- Bump kernel `gunicorn` from 26.0.0 to 26.1.0.
+- Bump kernel `ipykernel` from 6.28.0 to 7.3.0.
+- Bump kernel `jupyter-client` from 8.6.3 to 8.9.1.
+
 ## 0.1.2
 - Bump `ruff` from 0.16.3 to 0.16.4.
 
