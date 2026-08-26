@@ -30,25 +30,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          # In the step, not a job-level `if`: a skipped job reports no conclusion for
-          # branch protection to read.
+          # In the step, not a job-level `if`: a skipped job gives branch protection no conclusion.
           if [ "$SKIP" = 'true' ]; then
             echo "Waived by skip-version-bump."
             exit 0
           fi
 
-          # Paths that reach a consumer; `pyproject.toml` because metadata ships in
-          # METADATA. Here-string, not a pipe: `grep -q` exits early, and the writer's
-          # SIGPIPE would then fail this under `pipefail`.
+          # Paths that reach a consumer; `pyproject.toml` because its metadata ships in METADATA.
+          # Here-string, not a pipe: `grep -q` exits early and SIGPIPEs the writer under `pipefail`.
           CHANGED="$(git -c core.quotePath=false diff --name-only --no-renames "${BASE}...HEAD")"
           if ! grep -qE '^(src/|pyproject\.toml$|README\.md$|LICENSE$|NOTICE$|AUTHORS$)' <<<"$CHANGED"; then
             echo "Nothing that ships changed."
             exit 0
           fi
 
-          # Parsed, not grepped off the diff: another table can hold its own `version`
-          # key, spaces around `=` are optional, and only both sides reveal a version
-          # going backwards.
+          # Parsed, not grepped: `version` appears in other tables and spacing around `=` varies.
           read_version() {
             git show "$1:pyproject.toml" \
               | python3 -c 'import sys, tomllib; print(tomllib.load(sys.stdin.buffer)["project"]["version"])'
@@ -61,8 +57,7 @@ jobs:
             exit 1
           fi
 
-          # Checked here, not just at release time: release runs after the merge, so a
-          # bad version would redden main rather than this pull request.
+          # Checked here, not at release time: a bad version would otherwise redden main.
           if ! printf '%s' "$HEAD_VERSION" | grep -qE '^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*)){2}$'; then
             echo "::error::'$HEAD_VERSION' is not a plain X.Y.Z; the build backend strips leading zeros."
             exit 1

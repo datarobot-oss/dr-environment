@@ -16,7 +16,9 @@ permissions:
   contents: read
 
 jobs:
-  version:
+  # Ahead of the tag: tagging first would strand the version, since an existing tag
+  # releases nothing.
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -30,25 +32,14 @@ jobs:
         id: version
         uses: datarobot-oss/github-actions/actions/read-pyproject-version@0.0.24
 
-  # Ahead of the tag: tagging first would strand the version, since an existing tag
-  # releases nothing.
-  build:
-    needs: version
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
-
       - name: Install uv
         uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39  # v3
 
       - name: Install dependencies
         run: uv sync --extra dev
 
-      # `ci.yml` tests this commit on its own trigger, so it gates nothing. Tests only;
-      # lint and audit stay there. A release can be yanked, never replaced.
+      # Gates the publish, not the merge: `ci.yml` covers this commit on its own trigger.
+      # Tests only; lint and audit stay there. A release can be yanked, never replaced.
       - name: Run tests
         run: uv run pytest
 
@@ -65,17 +56,17 @@ jobs:
           path: dist
 
   release:
-    needs: [ version, build ]
+    needs: build
     uses: datarobot-oss/github-actions/.github/workflows/create-release-on-merge.yaml@0.0.24
     with:
-      version: ${{ needs.version.outputs.version }}
+      version: ${{ needs.build.outputs.version }}
     permissions:
       contents: write
       pull-requests: read
 
   # A merge without a bump cuts no tag, so there is nothing to publish.
   publish:
-    needs: release
+    needs: [ build, release ]
     if: needs.release.outputs.released == 'true'
     runs-on: ubuntu-latest
     # Trusted publishing: PyPI checks this environment claim, so no token is stored.
@@ -84,6 +75,20 @@ jobs:
       contents: read
       id-token: write
     steps:
+      # The release workflow passes no `target_commitish`, so the tag lands on main's
+      # tip, which a merge landing mid-run has already moved. Checked before the upload:
+      # a stale tag is deletable, a wheel on PyPI is yank-only.
+      - name: Verify the tag is the commit that was built
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.build.outputs.version }}
+        run: |
+          TAG_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)"
+          if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::Tag $TAG is $TAG_SHA, not the built $GITHUB_SHA."
+            exit 1
+          fi
+
       - name: Download dist
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
