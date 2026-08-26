@@ -22,7 +22,11 @@ Guidelines for developing and contributing to this project.
 
 ## Changelog
 
-All pull requests should include an entry in the [CHANGELOG.md](CHANGELOG.md) file unless the changes are trivial (e.g., fixing typos, minor documentation updates).
+All pull requests should include an entry in the [CHANGELOG.md](CHANGELOG.md) file.
+
+This is enforced by the `Changelog` workflow. If a change has no consumer-visible effect (a typo, a
+CI-only tweak), apply the `skip-changelog` label instead. Bot-authored pull requests are exempt, so
+dependency bumps do not each need one.
 
 ## Responding to issues and pull requests
 
