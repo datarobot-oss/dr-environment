@@ -24,9 +24,16 @@ Guidelines for developing and contributing to this project.
 
 All pull requests should include an entry in the [CHANGELOG.md](CHANGELOG.md) file.
 
-This is enforced by the `Changelog` workflow. If a change has no consumer-visible effect (a typo, a
-CI-only tweak), apply the `skip-changelog` label instead. Bot-authored pull requests are exempt, so
-dependency bumps do not each need one.
+This is enforced by the `Changelog` workflow, bots included. If a change has no consumer-visible
+effect (a typo, a CI-only tweak), apply the `skip-changelog` label instead.
+
+## Versioning
+
+A merge to `main` releases the version `pyproject.toml` declares. A pull request that changes what
+ships must bump `[project].version` and file its changelog entry under that version; without the
+bump the merge goes green and publishes nothing. The `Version` workflow enforces this, waivable
+with the `skip-version-bump` label. What ships: anything under `src/`, plus `pyproject.toml`,
+`README.md`, `LICENSE`, `NOTICE`, `AUTHORS`.
 
 ## Responding to issues and pull requests
 

@@ -9,12 +9,12 @@ uv pip install -e .
 dr-environment --dr-plugin-manifest
 ```
 
-Expected manifest:
+Expected manifest, where `version` is whatever `pyproject.toml` declares:
 
 ```json
 {
   "name": "environment",
-  "version": "0.1.0",
+  "version": "X.Y.Z",
   "description": "Build execution environment Docker contexts with offline dependency caches",
   "authentication": false
 }

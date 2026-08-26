@@ -1,11 +1,9 @@
 name: Changelog
 
-# Fails a pull request that did not update CHANGELOG.md. Waivable per pull
-# request with the `skip-changelog` label, and skipped for bot authors, since
-# Dependabot cannot edit a changelog and this repo takes weekly bumps.
+# Fails a pull request that did not update CHANGELOG.md, bots included: a dependency
+# bump can change what ships. Waivable with the `skip-changelog` label.
 
-# `labeled` and `unlabeled` are named because listing any type replaces the
-# defaults; without them the skip label cannot re-run the check that demanded it.
+# `labeled` and `unlabeled` are listed because naming any type replaces the defaults.
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -21,4 +19,4 @@ jobs:
     with:
       changelog_path: CHANGELOG.md
       skip_label: skip-changelog
-      skip_bot_authors: true
+      skip_bot_authors: false
