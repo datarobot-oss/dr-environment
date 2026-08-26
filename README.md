@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/datarobot-oss/dr-environment">
-    <img src="docs/img/datarobot_logo.avif" width="600px" alt="DataRobot Logo"/>
+    <img src="https://raw.githubusercontent.com/datarobot-oss/dr-environment/main/docs/img/datarobot_logo.avif" width="600px" alt="DataRobot Logo"/>
   </a>
 </p>
 <h3 align="center">DataRobot Execution Environment Builder</h3>
@@ -8,23 +8,28 @@
 <p align="center">
   <a href="https://www.datarobot.com/">Homepage</a>
   ·
+  <a href="https://pypi.org/project/dr-environment/">PyPI</a>
+  ·
   <a href="https://docs.datarobot.com/en/docs/workbench/nxt-registry/nxt-environment-workshop/nxt-add-custom-env.html">Documentation</a>
   ·
   <a href="https://docs.datarobot.com/en/docs/get-started/troubleshooting/general-help.html">Support</a>
 </p>
 
 <p align="center">
-  <a href="LICENSE">
+  <a href="https://github.com/datarobot-oss/dr-environment/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0">
+  </a>
+  <a href="https://pypi.org/project/dr-environment/">
+    <img src="https://img.shields.io/pypi/v/dr-environment" alt="PyPI version">
   </a>
 </p>
 
 Build Codespace-ready execution environment Docker contexts for DataRobot App Framework recipes. Uses a **customer-buildable Wolfi base** with Python 3.11 and pre-warmed shared **uv**, **npm**, and **Go** dependency caches.
 
-> [!NOTE]
-> Early development (`0.1.0`). The generated Dockerfile and the CLI flags may change between
+> **Note**
+> Early development. The generated Dockerfile and the CLI flags may change between
 > releases. Released under DataRobot's open-source program; it does not carry an official support
-> SLA. See [SECURITY.md](SECURITY.md).
+> SLA. See [SECURITY.md](https://github.com/datarobot-oss/dr-environment/blob/main/SECURITY.md).
 
 ## How this relates to DataRobot custom environments
 
@@ -52,9 +57,7 @@ Lockfile validation runs each ecosystem's own tool, so a recipe may also need
 ## Install
 
 ```bash
-git clone https://github.com/datarobot-oss/dr-environment.git
-cd dr-environment
-uv tool install -e .
+uv tool install dr-environment
 ```
 
 ## Make an execution environment
@@ -89,7 +92,7 @@ docker image save exec-env -o image.tar
 
 5. Upload `image.tar` as a custom execution environment in DataRobot:
 
-![Upload execution environment in DataRobot](docs/exec-env.png)
+![Upload execution environment in DataRobot](https://raw.githubusercontent.com/datarobot-oss/dr-environment/main/docs/exec-env.png)
 
 ## Usage reference
 
@@ -168,11 +171,11 @@ pytest
 dr-environment --dr-plugin-manifest
 ```
 
-See [PLUGIN_TESTING.md](PLUGIN_TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+See [PLUGIN_TESTING.md](https://github.com/datarobot-oss/dr-environment/blob/main/PLUGIN_TESTING.md) and [CONTRIBUTING.md](https://github.com/datarobot-oss/dr-environment/blob/main/CONTRIBUTING.md).
 
 ## License
 
-Apache 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Apache 2.0. See [LICENSE](https://github.com/datarobot-oss/dr-environment/blob/main/LICENSE) and [NOTICE](https://github.com/datarobot-oss/dr-environment/blob/main/NOTICE).
 
 That grant covers this repository's own code. It does not extend to the components the generated
 image fetches at build time, which keep their own terms, including Wolfi apk packages under GPL-2.0
