@@ -7,12 +7,6 @@ on:
   push:
     branches: [ main ]
 
-# `cancel-in-progress: false` so a second merge waits, then finds this run's tag. Only one
-# run queues, so a third merge inside one release evicts the second; re-run it on that sha.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -36,7 +30,7 @@ jobs:
 
       - name: Read version from pyproject.toml
         id: version
-        uses: datarobot-oss/github-actions/actions/read-pyproject-version@0.0.24
+        uses: datarobot-oss/github-actions/actions/read-pyproject-version@0.0.25
 
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
@@ -63,7 +57,7 @@ jobs:
 
   release:
     needs: build
-    uses: datarobot-oss/github-actions/.github/workflows/create-release-on-merge.yaml@0.0.24
+    uses: datarobot-oss/github-actions/.github/workflows/create-release-on-merge.yaml@0.0.25
     with:
       version: ${{ needs.build.outputs.version }}
     permissions:
@@ -81,9 +75,8 @@ jobs:
       contents: read
       id-token: write
     steps:
-      # The release workflow passes no `target_commitish`, so the tag lands on main's
-      # tip, which a merge landing mid-run has already moved. Checked before the upload:
-      # a stale tag is deletable, a wheel on PyPI is yank-only.
+      # The reusable workflow tags github.sha, not main's tip. This check is still
+      # the last line before PyPI: a stale tag is deletable, a wheel is yank-only.
       - name: Verify the tag is the commit that was built
         env:
           GH_TOKEN: ${{ github.token }}
