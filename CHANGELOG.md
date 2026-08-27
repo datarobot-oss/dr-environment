@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.3
+- Pin `datarobot-oss/github-actions` at `0.0.25`, which tags the built commit rather than main's tip. Releases no longer need serialising, so the `Release` concurrency group is gone.
+
 ## 0.1.2
 - Bump kernel `ecs-logging` from 2.2.0 to 2.3.0.
 - Bump kernel `gunicorn` from 26.0.0 to 26.1.0.
