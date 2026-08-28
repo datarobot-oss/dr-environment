@@ -77,15 +77,11 @@ def write_component_cache_fragments(
 ) -> str | None:
     """Write all default component cache fragments; return final cache stage name."""
     previous = PREVIOUS_STAGE
-    wrote = False
     for component in components:
-        if not component.manifests:
-            continue
-        wrote = True
         previous = write_component_cache_fragment(
             component, docker_context, previous_stage=previous
         )
-    return previous if wrote else None
+    return previous if components else None
 
 
 def _copy_component_tree(component_name: str) -> str:
@@ -123,7 +119,7 @@ def _python_cache_lines(component_name: str) -> list[str]:
         # over packages that build fine, not just the genuinely risky ones.
         f"RUN UV_PROJECT_ENVIRONMENT={warm_venv} \\",
         f"    uv sync {sync_flags} \\",
-        "        --python ${VENV_PATH}/bin/python \\",
+        '        --python "${VENV_PATH}/bin/python" \\',
         f"    && uv pip install --no-cache --python {warm_venv}/bin/python pip \\",
         "    && uv export --frozen --no-dev --no-emit-local --no-emit-project \\",
         f"        -o {wheelhouse_req} \\",

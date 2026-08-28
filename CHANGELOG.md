@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.4
+- Build only into an empty target or one this tool generated, since the target is deleted first: `--target .` deleted the recipe and `--target <component>` deleted that component's source.
+- Strip the local `core` package's `[tool.uv.sources]` entry by name rather than by path, which left it in place for every recipe, since a component declares `path = "../core"`.
+- Create a component's `COMPONENT_DEST` before running its `environment` hook, which failed with `cp: Not a directory`.
+- Report the archive path from `--no-tarball` rather than from the file being present, so a reused directory no longer announces a stale archive.
+- Skip `__pycache__` when copying the kernel assets, so byte-code is no longer baked into the image.
+- Keep extras markers intact when stripping the local `core` package from an inline `dependencies` list, which split `datarobot[auth-authlib,core]` into two broken specifiers.
+- Inspect each component's lockfiles once per build rather than four times.
+- Name `task` and its installer when a component `environment` hook cannot run, rather than raising a bare `[Errno 2] No such file or directory`.
+- Test the context build, the model entrypoint and the hook contract end to end, and lint the generated Dockerfile and the shipped kernel assets in CI.
+
 ## 0.1.3
 - Pin `datarobot-oss/github-actions` at `0.0.25`, which tags the built commit rather than main's tip. Releases no longer need serialising, so the `Release` concurrency group is gone.
 
