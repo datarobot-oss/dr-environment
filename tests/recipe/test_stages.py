@@ -53,7 +53,11 @@ def test_python_cache_fragment_uses_uv_sync(tmp_path: Path) -> None:
     assert "uv sync" in content
     assert "--all-extras" in content
     assert "--all-groups" in content
+    # Every stage descends from `FROM --platform=${TARGETPLATFORM}`, so resolving for another
+    # platform would put wheels in the cache the image cannot run.
     assert "--python-platform" not in content
+    # Ownership is the `COPY --chown` above; the recursive chmod belongs to the throwaway
+    # cache-perms stage, since a `chown -R` here would copy the whole cache into this layer.
     assert "USER root" not in content
     assert "chown -R notebooks" not in content
     assert f"--no-install-package {LOCAL_SHARED_PACKAGE}" in content

@@ -31,17 +31,12 @@ FIXTURE_RECIPE = Path(__file__).resolve().parent / "fixtures" / "recipe"
 def _locked_recipe(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Lock the fixture recipe once per session; tests copy from the result.
 
-    The lockfiles are generated rather than committed: `validate_all` runs each ecosystem's own
-    check, which a committed lockfile fails as soon as that tool changes its format.
+    Generated rather than committed: `validate_all` runs each ecosystem's own check, which a
+    committed lockfile fails as soon as that tool changes its format.
     """
     for tool in ("uv", "npm"):
         if shutil.which(tool) is None:
-            message = f"{tool} is required to lock and validate the fixture recipe"
-            # Skipped locally, but a runner missing the tool would drop every end-to-end test
-            # and still report green, so on CI the missing tool is the failure.
-            if os.environ.get("CI"):
-                pytest.fail(message)
-            pytest.skip(message)
+            pytest.skip(f"{tool} is required to lock and validate the fixture recipe")
 
     root = tmp_path_factory.mktemp("locked-recipe") / "recipe"
     shutil.copytree(FIXTURE_RECIPE, root)

@@ -12,11 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""End-to-end build of a docker context from a recipe.
-
-These run `build` over a real recipe tree and assert what PLUGIN_TESTING.md asks a
-contributor to check by hand; everything else in this suite tests one unit in isolation.
-"""
+"""End-to-end build of a docker context from a recipe."""
 
 from __future__ import annotations
 
@@ -30,11 +26,10 @@ import pytest
 from dr_environment.recipe.build import build, create_tarball
 from dr_environment.recipe.validate import ValidationError
 
-# `FROM [--flag ...] <ref> [AS <stage>]`, case-insensitive because `as` is legal.
-_FROM = re.compile(r"^FROM\s+(?:--\S+\s+)*(\S+)(?:\s+AS\s+(\S+))?\s*$", re.MULTILINE | re.I)
 # Every way one instruction can name an earlier stage: `COPY|ADD --from=`, `RUN --mount=,from=`.
 # Unanchored, so a line carrying two mounts has both of its references checked.
 _STAGE_REF = re.compile(r"\bfrom=([A-Za-z0-9_.-]+)", re.I)
+_STAGE_DEF = re.compile(r"^FROM\s+(?:--\S+\s+)*\S+\s+AS\s+(\S+)", re.MULTILINE | re.I)
 
 # Set in the offline stage's ENV block. UV_FROZEN and UV_FIND_LINKS are here because the
 # wheelhouse and the frozen sync are what make an air-gapped install resolve at all.
@@ -56,7 +51,6 @@ def _instructions(dockerfile: str) -> str:
 
 @pytest.fixture
 def context(recipe: Path, tmp_path: Path) -> Path:
-    """Build a context once, for the tests whose subject is what came out of it."""
     return build(recipe, tmp_path / "ctx", tarball=False)
 
 
@@ -66,26 +60,13 @@ def dockerfile(context: Path) -> str:
     return _instructions((context / "Dockerfile").read_text(encoding="utf-8"))
 
 
-def test_context_stages_are_defined_before_they_are_used(dockerfile: str) -> None:
-    """A moved fragment or a renamed stage breaks the build with an unhelpful docker error.
-
-    This catches it without a daemon; a reference resolves to an earlier stage or a tagged image.
+def test_the_image_is_built_from_the_offline_stage(dockerfile: str) -> None:
+    """`docker build` with no `--target` builds the last stage, so an appended one becomes the
+    image. Stage references are resolved by `docker buildx build --check` in CI.
     """
-    defined: list[str] = []
-    for line in dockerfile.splitlines():
-        for ref in _STAGE_REF.findall(line):
-            assert ref in defined, f"{line.split()[0]} --from={ref} before {ref} is defined"
-        match = _FROM.match(line)
-        if match is None:
-            continue
-        base, stage = match.groups()
-        assert base in defined or ":" in base, f"FROM {base} is neither a stage nor a tagged image"
-        if stage:
-            defined.append(stage)
+    stages = _STAGE_DEF.findall(dockerfile)
 
-    # Last, not merely present: `docker build` with no `--target` builds the final stage, so a
-    # stage appended after this one silently becomes the image.
-    assert defined[-1] == "offline", f"the image is built from {defined[-1]}, not offline"
+    assert stages[-1] == "offline", f"the image is built from {stages[-1]}, not offline"
 
 
 def test_context_carries_the_custom_model_entrypoint(context: Path, dockerfile: str) -> None:
@@ -95,12 +76,9 @@ def test_context_carries_the_custom_model_entrypoint(context: Path, dockerfile: 
 
 
 def test_context_offline_stage_is_offline_and_not_root(dockerfile: str) -> None:
-    """Hadolint applies DL3002 per stage, so .hadolint.yaml ignores it.
-
-    The builder stages end as root on purpose, and only the stage the image is built from matters.
+    """The builder stages end as root on purpose, so `.hadolint.yaml` ignores DL3002; only the
+    stage the image is built from matters.
     """
-    # The `dockerfile` fixture strips comments: the template names UV_FROZEN in prose, and a
-    # setting mentioned only in a comment must not satisfy an assertion.
     offline_stage = dockerfile.split("AS offline", 1)[1]
 
     for setting in OFFLINE_ENV:
@@ -125,9 +103,8 @@ def test_only_manifest_bearing_components_are_laid_out(context: Path) -> None:
 def test_component_cache_stages_chain_and_the_offline_stage_copies_from_the_last(
     dockerfile: str,
 ) -> None:
-    """A broken chain silently drops earlier components' caches out of the image.
-
-    That only shows up as a missing package at deploy time.
+    """A broken chain drops earlier components' caches out of the image, which only shows up
+    as a missing package at deploy time.
     """
     chain = re.findall(r"^FROM\s+(\S+)\s+AS\s+(cache-\S+)\s*$", dockerfile, re.MULTILINE | re.I)
     assert chain == [
@@ -135,7 +112,6 @@ def test_component_cache_stages_chain_and_the_offline_stage_copies_from_the_last
         ("cache-agent_app", "cache-frontend"),
         ("cache-frontend", "cache-perms"),
     ]
-    # Copying from a middle stage would drop every later component's cache from the image.
     # Scoped to the offline stage: a legal `--from=` in an earlier fragment is not this test's
     # business, and scanning the whole file would blame the offline stage for it.
     refs = set(_STAGE_REF.findall(dockerfile.split("AS offline", 1)[1]))
@@ -168,13 +144,11 @@ def test_rebuild_replaces_the_target_rather_than_merging_into_it(
 
 
 # Parametrised rather than looped: a regression here deletes the target, so each case needs its
-# own recipe copy. `.` covers an unset shell variable too, since Path("") is Path("."). `agent`
-# is a component directory, which is inside the recipe rather than holding it.
+# own recipe copy. `.` covers an unset shell variable too, since Path("") is Path(".").
 @pytest.mark.parametrize("target", [".", "..", "agent"], ids=["dot", "parent", "component"])
 def test_build_refuses_a_target_that_already_holds_something_else(
     recipe: Path, monkeypatch: pytest.MonkeyPatch, target: str
 ) -> None:
-    """The rebuild below empties the target, so anything already there would be deleted."""
     monkeypatch.chdir(recipe)
 
     with pytest.raises(ValueError, match="was not generated by this tool"):
@@ -196,7 +170,6 @@ def test_tarball_holds_the_whole_context_and_nothing_outside_it(context: Path) -
 
 
 def test_build_refuses_a_component_whose_lockfile_is_missing(recipe: Path, tmp_path: Path) -> None:
-    """The documented failure: a component is only cacheable offline if its lockfile is real."""
     (recipe / "agent" / "uv.lock").unlink()
 
     with pytest.raises(ValidationError) as error_info:
@@ -212,11 +185,8 @@ def test_build_refuses_a_component_whose_lockfile_is_missing(recipe: Path, tmp_p
 def test_build_runs_a_component_environment_hook_and_assembles_its_fragment(
     recipe: Path, tmp_path: Path, stub_task: Callable[[str], None]
 ) -> None:
-    """Bare instructions appended to $DOCKERFILE_FRAGMENT extend the preceding cache stage.
-
-    That stage is in the chain the offline stage copies from. A fragment that opens its own
-    `FROM ... AS ...` is assembled but never referenced, so this asserts reachability rather
-    than mere presence.
+    """Bare instructions appended to $DOCKERFILE_FRAGMENT extend the preceding cache stage, so
+    this asserts the fragment is reachable from the image rather than merely present.
     """
     hook_dir = recipe / "custom"
     hook_dir.mkdir()
@@ -239,8 +209,7 @@ def test_build_runs_a_component_environment_hook_and_assembles_its_fragment(
 
     # The stage the instructions landed in has to be the one the caches are copied out of,
     # or whatever the hook warmed is discarded.
-    before_hook = dockerfile.split("RUN echo hooked")[0]
-    hook_stage = re.findall(r"^FROM\s+\S+\s+AS\s+(\S+)", before_hook, re.MULTILINE | re.I)[-1]
+    hook_stage = _STAGE_DEF.findall(dockerfile.split("RUN echo hooked")[0])[-1]
     perms = re.search(r"^FROM\s+(\S+)\s+AS\s+cache-perms", dockerfile, re.MULTILINE | re.I)
     assert perms is not None
     assert hook_stage == perms.group(1), (

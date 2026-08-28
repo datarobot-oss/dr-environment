@@ -15,9 +15,7 @@
 """The entrypoint DataRobot runs for every deployed model.
 
 `start_server_custom_model.sh` is COPY'd to /opt/code/start_server.sh and shipped into the
-image. CI lints its syntax with shellcheck, but nothing else exercises what it does. Its
-air-gap cache guard is the fix for a crash that reached customers, so it runs here with
-`uv`, `nat` and `python` stubbed.
+image. CI lints its syntax with shellcheck; this runs it, with `uv`, `nat` and `python` stubbed.
 """
 
 from __future__ import annotations
@@ -55,8 +53,13 @@ exit 0
 
 
 def _run(
-    tmp_path: Path, *, entry: str | None, offline: bool, url_prefix: str = ""
-) -> tuple[int, str, str]:
+    tmp_path: Path,
+    *,
+    entry: str | None,
+    offline: bool,
+    url_prefix: str = "",
+    expect_exit: int = 0,
+) -> tuple[str, str]:
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     script = code_dir / "start_server.sh"
@@ -94,8 +97,8 @@ def _run(
     # By path, not `sh <script>`: the image chmods this file and execs it, so the shebang
     # is what selects the interpreter in production.
     result = subprocess.run([str(script)], env=env, capture_output=True, text=True, check=False)
-    recorded = record.read_text(encoding="utf-8") if record.is_file() else ""
-    return result.returncode, result.stdout, recorded
+    assert result.returncode == expect_exit, result.stderr
+    return result.stdout, record.read_text(encoding="utf-8") if record.is_file() else ""
 
 
 @pytest.mark.parametrize(
@@ -105,17 +108,16 @@ def _run(
 def test_the_baked_cache_is_used_only_in_an_air_gapped_image(
     tmp_path: Path, offline: bool, expected: str
 ) -> None:
-    """`UV_NO_CACHE=1` would make `uv sync` ignore the wheels baked into the image.
-
-    Deployed models install at boot, and under UV_OFFLINE there is no index to fall back to.
+    """`UV_NO_CACHE=1` would make `uv sync` ignore the wheels baked into the image, and under
+    UV_OFFLINE there is no index for a boot-time install to fall back to.
     """
-    _, _, recorded = _run(tmp_path, entry="workflow", offline=offline)
+    _, recorded = _run(tmp_path, entry="workflow", offline=offline)
 
     assert expected in recorded
 
 
 def test_a_workflow_yaml_starts_the_agent_under_gunicorn(tmp_path: Path) -> None:
-    _, _, recorded = _run(tmp_path, entry="workflow", offline=True)
+    _, recorded = _run(tmp_path, entry="workflow", offline=True)
 
     assert "nat dragent serve" in recorded
     assert "--use_gunicorn true" in recorded
@@ -129,20 +131,19 @@ def test_a_workflow_yaml_starts_the_agent_under_gunicorn(tmp_path: Path) -> None
 
 def test_a_url_prefix_reaches_the_agent_as_its_root_path(tmp_path: Path) -> None:
     """A DataRobot deployment mounts every route below URL_PREFIX; without it they all 404."""
-    _, _, recorded = _run(tmp_path, entry="workflow", offline=True, url_prefix="/deploy/abc")
+    _, recorded = _run(tmp_path, entry="workflow", offline=True, url_prefix="/deploy/abc")
 
     assert "--root_path /deploy/abc" in recorded
 
 
 def test_an_app_directory_starts_the_mcp_server(tmp_path: Path) -> None:
-    _, _, recorded = _run(tmp_path, entry="app", offline=True)
+    _, recorded = _run(tmp_path, entry="app", offline=True)
 
     assert "python -m app.main" in recorded
     assert "nat dragent serve" not in recorded
 
 
 def test_neither_entry_point_fails_with_a_readable_error(tmp_path: Path) -> None:
-    returncode, stdout, _ = _run(tmp_path, entry=None, offline=True)
+    stdout, _ = _run(tmp_path, entry=None, offline=True, expect_exit=1)
 
-    assert returncode == 1
     assert "No valid entry point found" in stdout

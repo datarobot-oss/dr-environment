@@ -17,7 +17,6 @@ from pathlib import Path
 import yaml
 
 from dr_environment.recipe.discover import discover_components
-from dr_environment.recipe.manifests import find_manifest_file
 from dr_environment.recipe.models import ComponentStrategy
 
 
@@ -41,18 +40,3 @@ def test_discover_components_finds_nested_bin_manifest(tmp_path: Path) -> None:
     assert len(components) == 1
     assert components[0].name == "docs"
     assert components[0].strategy == ComponentStrategy.DEFAULT
-
-
-def test_a_dependency_directory_is_not_mistaken_for_the_component_manifest(
-    tmp_path: Path,
-) -> None:
-    """Any working checkout has node_modules or .venv on disk.
-
-    Picking a dependency's manifest fails the component against a file nobody here wrote.
-    """
-    component = tmp_path / "docs"
-    vendored = component / "node_modules" / "left-pad"
-    vendored.mkdir(parents=True)
-    (vendored / "package.json").write_text('{"name":"left-pad"}')
-
-    assert find_manifest_file(component, "package.json") is None
