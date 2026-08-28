@@ -30,6 +30,8 @@ from dr_environment.recipe.validate import ValidationError
 # Unanchored, so a line carrying two mounts has both of its references checked.
 _STAGE_REF = re.compile(r"\bfrom=([A-Za-z0-9_.-]+)", re.I)
 _STAGE_DEF = re.compile(r"^FROM\s+(?:--\S+\s+)*\S+\s+AS\s+(\S+)", re.MULTILINE | re.I)
+# Flags and sources of one COPY; every argument but the last is a source.
+_COPY = re.compile(r"^COPY\s+((?:--\S+\s+)*)(.+)$", re.MULTILINE)
 
 # Set in the offline stage's ENV block. UV_FROZEN and UV_FIND_LINKS are here because the
 # wheelhouse and the frozen sync are what make an air-gapped install resolve at all.
@@ -69,10 +71,38 @@ def test_the_image_is_built_from_the_offline_stage(dockerfile: str) -> None:
     assert stages[-1] == "offline", f"the image is built from {stages[-1]}, not offline"
 
 
-def test_context_carries_the_custom_model_entrypoint(context: Path, dockerfile: str) -> None:
+def test_context_carries_the_entrypoints_datarobot_connects_to(
+    context: Path, dockerfile: str
+) -> None:
     assert (context / "kernel" / "start_server_custom_model.sh").is_file()
     # DataRobot builds each deployed model FROM this image and runs this exact path.
     assert "COPY kernel/start_server_custom_model.sh /opt/code/start_server.sh" in dockerfile
+    # The port the notebook kernel gateway is reached on; a codespace connects to nothing else.
+    assert "EXPOSE 8888" in dockerfile
+
+
+def test_every_copy_source_exists_in_the_context(context: Path) -> None:
+    """A COPY naming a source the build never laid out fails only at `docker build` time,
+    which nothing in CI runs. Derived from the Dockerfile, so an asset added later is covered.
+    """
+    dockerfile = (context / "Dockerfile").read_text(encoding="utf-8")
+    sources = {
+        source
+        for flags, arguments in _COPY.findall(dockerfile)
+        if "--from=" not in flags
+        for source in arguments.split()[:-1]
+        if "$" not in source
+    }
+
+    assert sources, "no COPY sources found"
+    assert [source for source in sorted(sources) if not (context / source).exists()] == []
+
+
+def test_license_headers_never_reach_the_generated_dockerfile(context: Path) -> None:
+    """Fragment headers are Jinja comments, stripped at render time. A plain `#` header would
+    still satisfy license-eye while shipping 14 lines of boilerplate in every Dockerfile.
+    """
+    assert "Apache License" not in (context / "Dockerfile").read_text(encoding="utf-8")
 
 
 def test_context_offline_stage_is_offline_and_not_root(dockerfile: str) -> None:
@@ -145,7 +175,11 @@ def test_rebuild_replaces_the_target_rather_than_merging_into_it(
 
 # Parametrised rather than looped: a regression here deletes the target, so each case needs its
 # own recipe copy. `.` covers an unset shell variable too, since Path("") is Path(".").
-@pytest.mark.parametrize("target", [".", "..", "agent"], ids=["dot", "parent", "component"])
+@pytest.mark.parametrize(
+    "target",
+    [".", "..", "agent", "Taskfile.yml"],
+    ids=["dot", "parent", "component", "file"],
+)
 def test_build_refuses_a_target_that_already_holds_something_else(
     recipe: Path, monkeypatch: pytest.MonkeyPatch, target: str
 ) -> None:

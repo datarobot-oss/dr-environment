@@ -18,25 +18,16 @@ from dr_environment.recipe.cache.stages import write_component_cache_fragment
 from dr_environment.recipe.layout import LOCAL_SHARED_PACKAGE
 from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
 
-MANIFEST_NAMES = {
-    Ecosystem.PYTHON: "pyproject.toml",
-    Ecosystem.NPM: "package.json",
-    Ecosystem.GO: "go.mod",
-}
-
 
 def _component(tmp_path: Path, name: str, ecosystem: Ecosystem, order: int) -> Component:
+    """Build a component; the fragment comes from the ecosystem alone, so paths go unread."""
     return Component(
         name=name,
         source_dir=tmp_path,
         strategy=ComponentStrategy.DEFAULT,
         fragment_order=order,
         manifests=[
-            ManifestInfo(
-                ecosystem=ecosystem,
-                manifest=tmp_path / MANIFEST_NAMES[ecosystem],
-                lockfile=tmp_path / "lock",
-            )
+            ManifestInfo(ecosystem=ecosystem, manifest=tmp_path / "manifest", lockfile=None)
         ],
     )
 
@@ -49,6 +40,8 @@ def test_python_cache_fragment_uses_uv_sync(tmp_path: Path) -> None:
 
     content = (docker_context / "dockerfile.d" / "10-cache-agent.fragment").read_text()
     assert content.startswith("FROM kernel AS cache-agent")
+    # The dir the offline stage copies out of; warming any other one ships an empty cache.
+    assert "ENV UV_CACHE_DIR=/opt/cache/uv" in content
     assert "COPY --chown=notebooks:notebooks components/agent/" in content
     assert "uv sync" in content
     assert "--all-extras" in content

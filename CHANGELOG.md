@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## 0.1.4
-- Build only into an empty target or one this tool generated, since the target is deleted first: `--target .` deleted the recipe and `--target <component>` deleted that component's source.
+- Build only into an empty target or one this tool generated, since the target is deleted first: `--target .` deleted the recipe, `--target <component>` deleted that component's source, and `--target <file>` died inside `rmtree` on a bare errno.
 - Strip the local `core` package's `[tool.uv.sources]` entry by name rather than by path, which left it in place for every recipe, since a component declares `path = "../core"`.
 - Create a component's `COMPONENT_DEST` before running its `environment` hook, which failed with `cp: Not a directory`.
 - Report the archive path from `--no-tarball` rather than from the file being present, so a reused directory no longer announces a stale archive.

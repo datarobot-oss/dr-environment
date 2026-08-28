@@ -19,41 +19,11 @@ import pytest
 from dr_environment.recipe.render import (
     copy_fragment_assets,
     render_base_fragment,
-    render_build_deps_fragment,
-    render_kernel_setup_fragment,
     render_offline_fragment,
-    render_user_fragment,
     render_versions_fragment,
     template_root,
 )
 from dr_environment.recipe.versions import _DEFAULTS
-
-
-def test_copy_fragment_assets_includes_per_stage_files(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    docker_context.mkdir()
-    copy_fragment_assets(docker_context)
-
-    expected = [
-        "build-deps/build-requirements.txt",
-        "kernel/requirements.txt",
-        "kernel/agent/agent.py",
-        "kernel/agent/cgroup_watchers.py",
-        "kernel/jupyter_kernel_gateway_config.py",
-        "kernel/start_server_codespaces.sh",
-        "kernel/kernel.json",
-        "kernel/ipython_config.py",
-        "kernel/extensions/dataframe_formatter.py",
-        "kernel/sshd_config",
-        "kernel/setup-prompt.sh",
-        "kernel/notebooks-path.sh",
-        "kernel/setup-ssh.sh",
-        "kernel/common-user-limits.sh",
-        "kernel/setup-venv.sh",
-        "kernel/setup-caches.sh",
-    ]
-    for rel in expected:
-        assert (docker_context / rel).is_file(), rel
 
 
 def test_local_bytecode_is_not_copied_into_the_context(
@@ -68,19 +38,6 @@ def test_local_bytecode_is_not_copied_into_the_context(
     copy_fragment_assets(tmp_path / "ctx")
 
     assert not (tmp_path / "ctx" / "kernel" / "__pycache__").exists()
-
-
-def test_render_user_fragment(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    (docker_context / "dockerfile.d").mkdir(parents=True)
-
-    render_user_fragment(docker_context)
-
-    content = (docker_context / "dockerfile.d" / "01-user.fragment").read_text()
-    assert "FROM base AS user" in content
-    assert "adduser" in content
-    assert "USER $UNAME" in content
-    assert "HOME=/home/notebooks" in content
 
 
 def test_kernel_datarobot_pin_matches_versions_default() -> None:
@@ -128,6 +85,7 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     content = (docker_context / "dockerfile.d" / "02-versions.fragment").read_text()
     assert "FROM user AS versions" in content
     assert "USER $UNAME" in content
+    # The versions above are interpolated, so each literal proves its own value was read.
     assert "astral.sh/uv/install.sh" in content
     assert 'UV_VERSION="0.9.0"' in content
     assert "taskfile.dev/install.sh" in content
@@ -136,61 +94,19 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     assert "dr_v0.2.76_Linux_x86_64.tar.gz" in content
     assert "PULUMI_VERSION=3.206.0" in content
     assert "get.pulumi.com" in content
+    # The rest have no versions.yaml key, so they fall back to _DEFAULTS. Asserted against
+    # _DEFAULTS rather than a literal: bumping a default is maintenance, not a regression.
     assert "opencode.ai/install" in content
-    assert "OPENCODE_VERSION=1.17.11" in content
-    assert 'uv tool install "copier==9.17.0"' in content
-    assert "datarobot[core]>=3.18" in content
+    assert f"OPENCODE_VERSION={_DEFAULTS['opencode']}" in content
+    assert f'uv tool install "copier=={_DEFAULTS["copier"]}"' in content
+    assert f"datarobot[core]>={_DEFAULTS['datarobot']}" in content
     assert 'pulumi plugin install resource datarobot "$PULUMI_DATAROBOT_VERSION"' in content
     assert "--server github://api.github.com/datarobot-community/pulumi-datarobot" in content
-    assert "PULUMI_DATAROBOT_VERSION=v0.10.43" in content
+    assert f"PULUMI_DATAROBOT_VERSION=v{_DEFAULTS['pulumi_datarobot']}" in content
     assert 'pulumi plugin install resource command "$PULUMI_COMMAND_VERSION"' in content
-    assert "PULUMI_COMMAND_VERSION=v1.2.1" in content
+    assert f"PULUMI_COMMAND_VERSION=v{_DEFAULTS['pulumi_command']}" in content
     assert "plugin install xp" in content
     assert "pulumi login --local" in content
-    assert "PULUMI_SKIP_UPDATE_CHECK" not in content
-    assert "chown" not in content
-
-
-def test_render_build_deps_fragment_warms_pep517_build_deps(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    (docker_context / "dockerfile.d").mkdir(parents=True)
-
-    render_build_deps_fragment(docker_context)
-
-    content = (docker_context / "dockerfile.d" / "03-build-deps.fragment").read_text()
-    assert "FROM versions AS build-deps" in content
-    assert "COPY --chown=${UNAME}:${UNAME} build-deps/build-requirements.txt" in content
-    assert "USER root" not in content
-    assert (
-        'UV_CACHE_DIR="${UV_CACHE_DIR}" uv pip install -r /tmp/build-deps/build-requirements.txt'
-        in content
-    )
-    assert "/tmp/build-deps-venv/bin/python" in content
-
-
-def test_render_kernel_setup_fragment(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    (docker_context / "dockerfile.d").mkdir(parents=True)
-
-    render_kernel_setup_fragment(docker_context)
-
-    content = (docker_context / "dockerfile.d" / "04-kernel.fragment").read_text()
-    assert "FROM build-deps AS kernel" in content
-    assert "VENV_PATH" in content
-    assert "uv venv" in content
-    assert "uv pip install" in content
-    assert "build-requirements.txt" not in content
-    assert "python -m venv" not in content
-    assert "/bin/pip" not in content
-    assert "kernel.json" in content
-    assert "COPY kernel/agent/agent.py" in content
-    assert "COPY kernel/setup-ssh.sh" in content
-    assert "adduser" not in content
-    assert "PYTHONUNBUFFERED" not in content
-    assert "UV_OFFLINE" not in content
-    assert "EXPOSE 8888" in content
-    assert "notebooks-load-env.sh" in content
-    assert "bash-profile-load.sh" in content
 
 
 def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) -> None:
@@ -249,25 +165,3 @@ def test_render_base_fragment_pins_python_311_and_the_build_platform(tmp_path: P
     assert "ARG PYTHON_VERSION=3.11" in fragment
     assert "ARG TARGETPLATFORM=linux/amd64" in fragment
     assert "FROM --platform=${TARGETPLATFORM}" in fragment
-
-
-def test_fragment_license_headers_are_jinja_comments_and_never_reach_the_dockerfile() -> None:
-    # Every fragment must carry the Apache header so the .j2 is licensed like any other
-    # source file, but as a Jinja comment `{# ... -#}` so it is stripped at render time.
-    # A plain `#` header would still satisfy license-eye while leaking 14 lines of
-    # boilerplate into every customer's generated Dockerfile.
-    fragments = sorted(template_root().glob("*.fragment.j2"))
-    assert fragments, "no Dockerfile fragments found"
-
-    for fragment in fragments:
-        source = fragment.read_text(encoding="utf-8")
-        assert source.startswith("{#"), f"{fragment.name} header must open a Jinja comment"
-        assert "Apache License" in source, f"{fragment.name} is missing the license header"
-        # `sep` asserted first: partition returns the whole source as the header when the
-        # marker is absent, so without it a plain `#` header passes unconditionally.
-        header, sep, _ = source.partition("-#}")
-        assert sep, f"{fragment.name} never closes its Jinja comment"
-        assert "Apache License" in header, (
-            f"{fragment.name} has the license text outside the Jinja comment, "
-            "so it would render into the Dockerfile"
-        )

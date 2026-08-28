@@ -77,22 +77,9 @@ def test_a_stale_npm_lockfile_names_npms_own_tool(tmp_path: Path) -> None:
     assert "out-of-date package-lock.json" in errors
     # The fix line is the ecosystem's own command, not whichever is first in MANIFEST_SPECS.
     assert "Fix: cd other && npm install" in errors
-
-
-def test_each_manifest_is_checked_once_per_build(tmp_path: Path) -> None:
-    """`npm ci --dry-run` is the slowest part of a build, so the status inspect_component
-    resolved is the one reported rather than being re-derived by a second pass.
-    """
-    component = _component(tmp_path, "frontend")
-    (component.source_dir / "package.json").write_text('{"name":"x"}')
-    (component.source_dir / "package-lock.json").write_text("")
-
-    with patch("dr_environment.recipe.validate.subprocess.run") as run:
-        run.return_value.returncode = 1
-        with pytest.raises(ValidationError):
-            validate_component(component)
-
     assert run.call_args.args[0] == ["npm", "ci", "--dry-run", "--ignore-scripts"]
+    # `npm ci --dry-run` is the slowest part of a build, so the status inspect_component
+    # resolved is the one reported rather than being re-derived by a second pass.
     assert run.call_count == 1
 
 

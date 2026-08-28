@@ -56,14 +56,15 @@ def build(
     docker_context = target.resolve() if target.is_absolute() else (Path.cwd() / target).resolve()
     # The target is emptied before it is written, so it may only be a directory this tool
     # generated, or an empty one. `--target .` (also an unset shell variable, since `Path("")`
-    # is `Path(".")`) and `--target <component>` both reach here and deleted recipe source.
+    # is `Path(".")`), `--target <component>` and `--target <file>` all reach here: the first
+    # two deleted recipe source, and the third died inside rmtree on a bare errno.
     if (
-        docker_context.is_dir()
-        and any(docker_context.iterdir())
+        docker_context.exists()
+        and (not docker_context.is_dir() or any(docker_context.iterdir()))
         and not (docker_context / "dockerfile.d").is_dir()
     ):
         raise ValueError(
-            f"refusing to build into {docker_context}: it is not empty and was not generated "
+            f"refusing to build into {docker_context}: it already exists and was not generated "
             "by this tool"
         )
     versions_file = recipe_path / ".datarobot/cli/versions.yaml"
