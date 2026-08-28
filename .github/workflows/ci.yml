@@ -52,6 +52,20 @@ jobs:
       - name: Type check (mypy)
         run: uv run mypy src
 
+      # The kernel assets are COPY'd into the image and run there, but nothing else here sees
+      # them: the templates directory is excluded from ruff and mypy, and hadolint reads `RUN`
+      # lines rather than copied scripts. Style is not the point for scripts adapted from
+      # elsewhere; undefined names and dead imports are. The traitlets configs are skipped
+      # because jupyter injects the `c` they read.
+      - name: Lint the shipped kernel assets
+        env:
+          KERNEL: src/dr_environment/recipe/templates/docker_context/kernel
+        run: |
+          uv run ruff check --isolated --select F,E9 --exclude '*_config.py' "${KERNEL}"
+          docker run --rm -v "$(pwd)":/mnt -w /mnt \
+            koalaman/shellcheck-alpine:v0.11.0 \
+            shellcheck -S warning "${KERNEL}"/*.sh
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -119,12 +133,90 @@ jobs:
       - name: Validate package metadata
         run: uvx twine check dist/*
 
+      # `twine check` reads the metadata only. The `dr` CLI discovers this plugin by running
+      # the installed console script, so install the wheel and ask it the way `dr` does.
+      - name: Verify the plugin manifest of the installed wheel
+        env:
+          UV_TOOL_BIN_DIR: ${{ runner.temp }}/tool-bin
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          uv tool install --force dist/*.whl
+          manifest="$("${UV_TOOL_BIN_DIR}/dr-environment" --dr-plugin-manifest)"
+          echo "$manifest"
+          test "$(jq -r .name <<<"$manifest")" = 'environment'
+          test "$(jq -r .authentication <<<"$manifest")" = 'false'
+          test "$(jq -r .version <<<"$manifest")" = "$version"
+
       - name: Upload dist
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: dist
           path: dist
+          if-no-files-found: ignore
+
+  # Every other job here tests the code that writes the docker context. This one generates
+  # the context from the fixture recipe and inspects what came out, without building a layer.
+  context:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      # Generated rather than committed: recipe validation runs each ecosystem's own check,
+      # which a lockfile written by a different uv or npm fails. npm comes from the runner
+      # image. Both fixture components are dependency-free, so neither reaches an index.
+      - name: Lock the fixture recipe
+        run: |
+          uv lock --directory tests/fixtures/recipe/agent
+          npm install --package-lock-only --ignore-scripts \
+            --prefix tests/fixtures/recipe/frontend
+
+      - name: Generate the docker context
+        run: >
+          uv run dr-environment recipe
+          --recipe-path tests/fixtures/recipe
+          --target ${{ runner.temp }}/docker_context
+          --no-tarball
+
+      - name: Lint the generated Dockerfile
+        run: |
+          docker run --rm -i -v "$(pwd)/.hadolint.yaml":/.hadolint.yaml:ro \
+            ghcr.io/hadolint/hadolint:v2.14.0-alpine \
+            hadolint --config /.hadolint.yaml - < "${{ runner.temp }}/docker_context/Dockerfile"
+
+      # Resolves the stage graph and the base image without building a layer, so a stage
+      # renamed out from under a `COPY --from` fails here in seconds instead of in a build.
+      # RedundantTargetPlatform is skipped because TARGETPLATFORM is shadowed by an ARG on
+      # purpose, to force linux/amd64 for DataRobot notebook kernels. Unlike hadolint and
+      # shellcheck this is not pinned: BuildKit comes from the runner image and adds check
+      # rules in minor releases, so a runner bump can redden a pull request that changed nothing.
+      - name: Check the generated Dockerfile
+        run: |
+          docker buildx build --check \
+            --build-arg BUILDKIT_DOCKERFILE_CHECK=skip=RedundantTargetPlatform \
+            "${{ runner.temp }}/docker_context"
+
+      - name: Upload the generated context
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: docker-context
+          path: ${{ runner.temp }}/docker_context
           if-no-files-found: ignore
 
   licenses:
