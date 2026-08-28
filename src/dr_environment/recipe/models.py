@@ -56,7 +56,3 @@ class Component:
     strategy: ComponentStrategy = ComponentStrategy.DEFAULT
     manifests: list[ManifestInfo] = field(default_factory=list)
     fragment_order: int = 0
-
-    @property
-    def dest_name(self) -> str:
-        return self.name

@@ -39,11 +39,8 @@ def copy_fragment_assets(docker_context: Path) -> None:
         src = root / name
         if not src.is_dir():
             continue
-        shutil.copytree(src, docker_context / name)
-
-
-# Backward-compatible alias for tests and callers.
-copy_static_template = copy_fragment_assets
+        # Byte-code left behind by a local lint run must not be baked into the image.
+        shutil.copytree(src, docker_context / name, ignore=shutil.ignore_patterns("__pycache__"))
 
 
 def render_base_fragment(docker_context: Path) -> None:

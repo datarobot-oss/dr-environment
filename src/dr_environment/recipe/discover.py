@@ -40,12 +40,7 @@ def has_environment_task(taskfile: Path) -> bool:
     return "environment" in tasks
 
 
-def discover_components(
-    recipe_path: Path,
-    *,
-    component_filter: set[str] | None = None,
-    skip_hooks: bool = False,
-) -> list[Component]:
+def discover_components(recipe_path: Path) -> list[Component]:
     """Return components from root Taskfile includes."""
     root_taskfile = find_taskfile(recipe_path)
     if root_taskfile is None:
@@ -61,8 +56,6 @@ def discover_components(
             continue
         if spec.get("internal"):
             continue
-        if component_filter and name not in component_filter:
-            continue
 
         component_dir = Path(spec.get("dir", name))
         if not component_dir.is_absolute():
@@ -70,7 +63,7 @@ def discover_components(
 
         taskfile = find_taskfile(component_dir)
         strategy = ComponentStrategy.DEFAULT
-        if not skip_hooks and taskfile and has_environment_task(taskfile):
+        if taskfile and has_environment_task(taskfile):
             strategy = ComponentStrategy.HOOK
         elif not has_any_manifest(component_dir):
             strategy = ComponentStrategy.SKIP
