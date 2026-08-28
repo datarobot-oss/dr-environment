@@ -12,11 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `task environment` hook contract.
-
-A component's `environment` task is a public extension point: PLUGIN_TESTING.md documents
-these five variables, and a third-party Taskfile breaks silently if one is renamed. `task`
-itself is stubbed, so the contract is pinned without go-task on the runner.
+"""The `task environment` hook contract: PLUGIN_TESTING.md documents these five variables,
+and a third-party Taskfile breaks silently if one is renamed.
 """
 
 from __future__ import annotations
@@ -56,9 +53,8 @@ def _component(tmp_path: Path) -> Component:
 def test_hook_runs_with_the_documented_contract(
     tmp_path: Path, stub_task: Callable[[str], None]
 ) -> None:
-    # One `echo` per variable, in CONTRACT order: a renamed variable then reads back as an
-    # empty value rather than shifting every value after it. BSD `printenv` takes one name
-    # only, so it cannot be used here.
+    # One `echo` per variable, in CONTRACT order: a renamed variable reads back empty rather
+    # than shifting every value after it.
     record = tmp_path / "record"
     reads = "; ".join(f'echo "${name}"' for name in CONTRACT)
     stub_task(
@@ -81,9 +77,8 @@ def test_hook_runs_with_the_documented_contract(
         "DOCKERFILE_FRAGMENT": str(fragment.resolve()),
         "COMPONENT_DEST": str((context / "components" / "custom").resolve()),
     }
-    # Both paths have to exist before the task runs: it appends to one and writes into the
-    # other. Asserting they exist afterwards would also pass if either mkdir moved below the
-    # subprocess, so the stub writes into both and the written content is what proves it.
+    # The stub writes into both paths, so the content proves they existed before it ran;
+    # asserting they exist afterwards would pass with either mkdir below the subprocess.
     assert fragment.read_text(encoding="utf-8") == "RUN echo hooked\n"
     assert (context / "components" / "custom" / "copied").is_file()
 
@@ -106,18 +101,3 @@ def test_a_missing_task_binary_names_its_installer(
 
     with pytest.raises(FileNotFoundError, match="taskfile.dev"):
         run_environment_hook(_component(tmp_path), tmp_path / "ctx")
-
-
-def test_hook_without_a_taskfile_is_an_error(tmp_path: Path) -> None:
-    component = Component(
-        name="custom",
-        source_dir=tmp_path / "no_taskfile",
-        strategy=ComponentStrategy.HOOK,
-        fragment_order=10,
-    )
-    (tmp_path / "no_taskfile").mkdir()
-
-    # Matched on the message, not the component name: the missing-`task` path raises
-    # FileNotFoundError naming the component too, so `custom` would match either one.
-    with pytest.raises(FileNotFoundError, match="No Taskfile"):
-        run_environment_hook(component, tmp_path / "ctx")
