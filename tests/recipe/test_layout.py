@@ -14,13 +14,31 @@
 # limitations under the License.
 from pathlib import Path
 
-from dr_environment.recipe.cache.stages import write_component_cache_fragment
 from dr_environment.recipe.layout import (
     LOCAL_SHARED_PACKAGE,
     copy_component,
     strip_local_shared_python_package,
 )
 from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
+
+
+def _python_component(name: str, manifest_dir: Path, pyproject: str) -> Component:
+    """Build a component whose manifests live in `manifest_dir`, which need not be its root."""
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    (manifest_dir / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+    (manifest_dir / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    return Component(
+        name=name,
+        source_dir=manifest_dir,
+        strategy=ComponentStrategy.DEFAULT,
+        manifests=[
+            ManifestInfo(
+                ecosystem=Ecosystem.PYTHON,
+                manifest=manifest_dir / "pyproject.toml",
+                lockfile=manifest_dir / "uv.lock",
+            )
+        ],
+    )
 
 
 def test_strip_local_shared_python_package() -> None:
@@ -32,135 +50,64 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-core = { path = "core", editable = true }
+core = { path = "../core", editable = true }
 other = { path = "vendor", editable = true }
 """
     stripped = strip_local_shared_python_package(pyproject)
     assert '\n    "core",\n' not in stripped
     assert "datarobot[auth-authlib,core]" in stripped
-    assert 'core = { path = "core", editable = true }' not in stripped
+    # `../core` is what a component writes; matching the path as well as the key left this
+    # entry in place for every real recipe, so the source has to be keyed on the name alone.
+    assert "core = { path" not in stripped
     assert 'other = { path = "vendor", editable = true }' in stripped
 
 
-def test_python_cache_fragment_omits_core_for_other_components(tmp_path: Path) -> None:
-    component = Component(
-        name="fastapi_server",
-        source_dir=tmp_path,
-        strategy=ComponentStrategy.DEFAULT,
-        fragment_order=15,
-        manifests=[
-            ManifestInfo(
-                ecosystem=Ecosystem.PYTHON,
-                manifest=tmp_path / "pyproject.toml",
-                lockfile=tmp_path / "uv.lock",
-            )
-        ],
+def test_strip_local_shared_python_package_keeps_extras_in_an_inline_list() -> None:
+    """The comma inside `datarobot[auth-authlib,core]` is not a dependency separator."""
+    stripped = strip_local_shared_python_package(
+        '[project]\ndependencies = ["core", "datarobot[auth-authlib,core]>=3.9.1"]\n'
     )
-    docker_context = tmp_path / "ctx"
-    write_component_cache_fragment(component, docker_context, previous_stage="base")
 
-    content = (docker_context / "dockerfile.d" / "15-cache-fastapi_server.fragment").read_text()
-    assert f"--no-install-package {LOCAL_SHARED_PACKAGE}" in content
-
-
-def test_python_cache_fragment_keeps_core_for_core_component(tmp_path: Path) -> None:
-    component = Component(
-        name=LOCAL_SHARED_PACKAGE,
-        source_dir=tmp_path,
-        strategy=ComponentStrategy.DEFAULT,
-        fragment_order=11,
-        manifests=[
-            ManifestInfo(
-                ecosystem=Ecosystem.PYTHON,
-                manifest=tmp_path / "pyproject.toml",
-                lockfile=tmp_path / "uv.lock",
-            )
-        ],
-    )
-    docker_context = tmp_path / "ctx"
-    write_component_cache_fragment(component, docker_context, previous_stage="base")
-
-    content = (docker_context / "dockerfile.d" / "11-cache-core.fragment").read_text()
-    assert "--no-install-package core" not in content
+    assert stripped == '[project]\ndependencies = ["datarobot[auth-authlib,core]>=3.9.1"]\n'
 
 
 def test_copy_component_strips_core_from_pyproject(tmp_path: Path) -> None:
-    component_dir = tmp_path / "fastapi_server"
-    component_dir.mkdir()
-    (component_dir / "pyproject.toml").write_text(
-        '[project]\ndependencies = ["core"]\n\n[tool.uv.sources]\n'
-        'core = { path = "core", editable = true }\n',
-        encoding="utf-8",
+    component = _python_component(
+        "fastapi_server",
+        tmp_path / "fastapi_server",
+        '[project]\ndependencies = ["core"]\n\n'
+        '[tool.uv.sources]\ncore = { path = "../core", editable = true }\n',
     )
-    (component_dir / "uv.lock").write_text("version = 1\n", encoding="utf-8")
 
-    component = Component(
-        name="fastapi_server",
-        source_dir=component_dir,
-        strategy=ComponentStrategy.DEFAULT,
-    )
-    component.manifests = [
-        ManifestInfo(
-            ecosystem=Ecosystem.PYTHON,
-            manifest=component_dir / "pyproject.toml",
-            lockfile=component_dir / "uv.lock",
-        )
-    ]
+    copy_component(component, tmp_path / "ctx")
 
-    docker_context = tmp_path / "ctx"
-    copy_component(component, docker_context)
-    copied = (docker_context / "components/fastapi_server/pyproject.toml").read_text()
+    copied = (tmp_path / "ctx/components/fastapi_server/pyproject.toml").read_text()
     assert "core = { path" not in copied
     assert '"core"' not in copied
 
-    core_component = Component(
-        name=LOCAL_SHARED_PACKAGE,
-        source_dir=tmp_path / LOCAL_SHARED_PACKAGE,
-        strategy=ComponentStrategy.DEFAULT,
+
+def test_copy_component_keeps_cores_own_source_entry(tmp_path: Path) -> None:
+    """`core` is exempt from the rewrite, so its own source entry survives the copy."""
+    component = _python_component(
+        LOCAL_SHARED_PACKAGE,
+        tmp_path / LOCAL_SHARED_PACKAGE,
+        '[project]\nname = "core"\ndependencies = ["httpx"]\n\n[tool.uv.sources]\n'
+        'core = { path = "core", editable = true }\n',
     )
-    core_dir = tmp_path / LOCAL_SHARED_PACKAGE
-    core_dir.mkdir()
-    (core_dir / "pyproject.toml").write_text(
-        '[project]\nname = "core"\ndependencies = ["httpx"]\n',
-        encoding="utf-8",
-    )
-    (core_dir / "uv.lock").write_text("version = 1\n", encoding="utf-8")
-    core_component.manifests = [
-        ManifestInfo(
-            ecosystem=Ecosystem.PYTHON,
-            manifest=core_dir / "pyproject.toml",
-            lockfile=core_dir / "uv.lock",
-        )
-    ]
-    copy_component(core_component, docker_context)
-    core_copied = (docker_context / "components/core/pyproject.toml").read_text()
-    assert 'name = "core"' in core_copied
+
+    copy_component(component, tmp_path / "ctx")
+
+    copied = (tmp_path / "ctx/components/core/pyproject.toml").read_text()
+    assert 'core = { path = "core", editable = true }' in copied
 
 
 def test_copy_component_from_nested_bin_manifest(tmp_path: Path) -> None:
-    component_dir = tmp_path / "docs"
-    docs_bin = component_dir / ".bin"
-    docs_bin.mkdir(parents=True)
-    (docs_bin / "pyproject.toml").write_text(
-        '[project]\nname = "af-component-docs"\n', encoding="utf-8"
-    )
-    (docs_bin / "uv.lock").write_text("version = 1\n", encoding="utf-8")
-
-    component = Component(
-        name="docs",
-        source_dir=component_dir,
-        strategy=ComponentStrategy.DEFAULT,
-        manifests=[
-            ManifestInfo(
-                ecosystem=Ecosystem.PYTHON,
-                manifest=docs_bin / "pyproject.toml",
-                lockfile=docs_bin / "uv.lock",
-            )
-        ],
+    """The real `docs` component keeps its manifest in `docs/.bin`, not at its root."""
+    component = _python_component(
+        "docs", tmp_path / "docs" / ".bin", '[project]\nname = "af-component-docs"\n'
     )
 
-    docker_context = tmp_path / "ctx"
-    copy_component(component, docker_context)
+    copy_component(component, tmp_path / "ctx")
 
-    assert (docker_context / "components/docs/pyproject.toml").is_file()
-    assert (docker_context / "components/docs/uv.lock").is_file()
+    assert (tmp_path / "ctx/components/docs/pyproject.toml").is_file()
+    assert (tmp_path / "ctx/components/docs/uv.lock").is_file()

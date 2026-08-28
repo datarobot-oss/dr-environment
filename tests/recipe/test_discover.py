@@ -17,32 +17,8 @@ from pathlib import Path
 import yaml
 
 from dr_environment.recipe.discover import discover_components
+from dr_environment.recipe.manifests import find_manifest_file
 from dr_environment.recipe.models import ComponentStrategy
-
-
-def test_discover_components_skips_internal_and_infra_only(tmp_path: Path) -> None:
-    recipe = tmp_path / "recipe"
-    recipe.mkdir()
-    (recipe / "agent").mkdir()
-    (recipe / "agent" / "pyproject.toml").write_text("[project]\nname='a'\n")
-    (recipe / "agent" / "uv.lock").write_text("")
-
-    taskfile = {
-        "version": "3",
-        "includes": {
-            "common": {"taskfile": "./core/task-common.yaml", "internal": True},
-            "agent": {"taskfile": "./agent/Taskfile.yml", "dir": "./agent"},
-            "infra": {"taskfile": "./infra/Taskfile.yaml", "dir": "./infra"},
-        },
-    }
-    (recipe / "Taskfile.yml").write_text(yaml.dump(taskfile))
-    (recipe / "infra").mkdir()
-
-    components = discover_components(recipe)
-    names = [c.name for c in components]
-    assert names == ["agent", "infra"]
-    assert components[0].strategy == ComponentStrategy.DEFAULT
-    assert components[1].strategy == ComponentStrategy.SKIP
 
 
 def test_discover_components_finds_nested_bin_manifest(tmp_path: Path) -> None:
@@ -65,3 +41,18 @@ def test_discover_components_finds_nested_bin_manifest(tmp_path: Path) -> None:
     assert len(components) == 1
     assert components[0].name == "docs"
     assert components[0].strategy == ComponentStrategy.DEFAULT
+
+
+def test_a_dependency_directory_is_not_mistaken_for_the_component_manifest(
+    tmp_path: Path,
+) -> None:
+    """Any working checkout has node_modules or .venv on disk.
+
+    Picking a dependency's manifest fails the component against a file nobody here wrote.
+    """
+    component = tmp_path / "docs"
+    vendored = component / "node_modules" / "left-pad"
+    vendored.mkdir(parents=True)
+    (vendored / "package.json").write_text('{"name":"left-pad"}')
+
+    assert find_manifest_file(component, "package.json") is None

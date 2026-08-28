@@ -1,0 +1,9 @@
+# Dependency-free so `uv lock` resolves without reaching an index.
+[project]
+name = "fixture-agent"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.uv]
+package = false

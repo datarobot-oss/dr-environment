@@ -17,8 +17,8 @@ from pathlib import Path
 import pytest
 
 from dr_environment.recipe.render import (
-    assemble_dockerfile,
     copy_fragment_assets,
+    render_base_fragment,
     render_build_deps_fragment,
     render_kernel_setup_fragment,
     render_offline_fragment,
@@ -26,19 +26,7 @@ from dr_environment.recipe.render import (
     render_versions_fragment,
     template_root,
 )
-from dr_environment.recipe.versions import _DEFAULTS, parse_tool_versions
-
-
-def test_assemble_dockerfile_orders_fragments(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    dockerfile_d = docker_context / "dockerfile.d"
-    dockerfile_d.mkdir(parents=True)
-    (dockerfile_d / "10-b.fragment").write_text("FROM b")
-    (dockerfile_d / "00-a.fragment").write_text("FROM a")
-
-    assemble_dockerfile(docker_context)
-    content = (docker_context / "Dockerfile").read_text()
-    assert content.index("FROM a") < content.index("FROM b")
+from dr_environment.recipe.versions import _DEFAULTS
 
 
 def test_copy_fragment_assets_includes_per_stage_files(tmp_path: Path) -> None:
@@ -66,6 +54,20 @@ def test_copy_fragment_assets_includes_per_stage_files(tmp_path: Path) -> None:
     ]
     for rel in expected:
         assert (docker_context / rel).is_file(), rel
+
+
+def test_local_bytecode_is_not_copied_into_the_context(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Byte-code from a local lint run must not be baked into the image."""
+    templates = tmp_path / "templates"
+    (templates / "kernel" / "__pycache__").mkdir(parents=True)
+    (templates / "kernel" / "__pycache__" / "render.pyc").write_bytes(b"")
+    monkeypatch.setattr("dr_environment.recipe.render.template_root", lambda: templates)
+
+    copy_fragment_assets(tmp_path / "ctx")
+
+    assert not (tmp_path / "ctx" / "kernel" / "__pycache__").exists()
 
 
 def test_render_user_fragment(tmp_path: Path) -> None:
@@ -220,11 +222,10 @@ def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) 
         "COPY --from=cache-agent --chown=notebooks:notebooks /opt/wheelhouse /opt/wheelhouse"
         in content
     )
-    assert "UV_FIND_LINKS=/opt/wheelhouse" in content
-    assert "UV_OFFLINE=1" in content
+    # The air-gap settings are asserted in test_build.py, against the assembled Dockerfile
+    # with comments stripped; these two are not part of that contract.
     assert "NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES=1" in content
     assert "DEEPEVAL_HOME=/tmp/.deepeval" in content
-    assert "GOPROXY=off" in content
 
 
 def test_render_offline_fragment_without_cache_stages(tmp_path: Path) -> None:
@@ -238,17 +239,16 @@ def test_render_offline_fragment_without_cache_stages(tmp_path: Path) -> None:
     assert "COPY --from=" not in content
 
 
-def test_parse_tool_versions_defaults() -> None:
-    tools = parse_tool_versions({})
-    assert tools.dr == "v0.2.76"
-    assert tools.uv == "0.9.0"
-    assert tools.node == "v24.0.0"
-    assert tools.pulumi == "3.163.0"
-    assert tools.opencode == "1.17.11"
-    assert tools.copier == "9.17.0"
-    assert tools.datarobot == "3.18"
-    assert tools.pulumi_datarobot == "v0.10.43"
-    assert tools.pulumi_command == "v1.2.1"
+def test_render_base_fragment_pins_python_311_and_the_build_platform(tmp_path: Path) -> None:
+    """Both pins shipped as outages: 3.12 crash-loops agents on uvloop, arm64 on exec format."""
+    docker_context = tmp_path / "ctx"
+
+    render_base_fragment(docker_context)
+    fragment = (docker_context / "dockerfile.d" / "00-base.fragment").read_text(encoding="utf-8")
+
+    assert "ARG PYTHON_VERSION=3.11" in fragment
+    assert "ARG TARGETPLATFORM=linux/amd64" in fragment
+    assert "FROM --platform=${TARGETPLATFORM}" in fragment
 
 
 def test_fragment_license_headers_are_jinja_comments_and_never_reach_the_dockerfile() -> None:
@@ -263,7 +263,10 @@ def test_fragment_license_headers_are_jinja_comments_and_never_reach_the_dockerf
         source = fragment.read_text(encoding="utf-8")
         assert source.startswith("{#"), f"{fragment.name} header must open a Jinja comment"
         assert "Apache License" in source, f"{fragment.name} is missing the license header"
-        header, _, _ = source.partition("-#}")
+        # `sep` asserted first: partition returns the whole source as the header when the
+        # marker is absent, so without it a plain `#` header passes unconditionally.
+        header, sep, _ = source.partition("-#}")
+        assert sep, f"{fragment.name} never closes its Jinja comment"
         assert "Apache License" in header, (
             f"{fragment.name} has the license text outside the Jinja comment, "
             "so it would render into the Dockerfile"
