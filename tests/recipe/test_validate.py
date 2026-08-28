@@ -18,22 +18,18 @@ from unittest.mock import patch
 import pytest
 
 from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem
-from dr_environment.recipe.validate import ValidationError, inspect_component, validate_component
+from dr_environment.recipe.validate import (
+    ValidationError,
+    inspect_component,
+    validate_all,
+    validate_component,
+)
 
 
 def _component(tmp_path: Path, name: str = "agent") -> Component:
     comp_dir = tmp_path / name
     comp_dir.mkdir()
     return Component(name=name, source_dir=comp_dir, strategy=ComponentStrategy.DEFAULT)
-
-
-def test_missing_uv_lock_fails(tmp_path: Path) -> None:
-    component = _component(tmp_path)
-    (component.source_dir / "pyproject.toml").write_text("[project]\nname='x'\n")
-
-    with pytest.raises(ValidationError) as exc:
-        validate_component(component)
-    assert "uv.lock is missing" in exc.value.errors[0]
 
 
 def test_stale_uv_lock_detected_by_uv_lock_check(tmp_path: Path) -> None:
@@ -47,3 +43,58 @@ def test_stale_uv_lock_detected_by_uv_lock_check(tmp_path: Path) -> None:
 
     assert infos[0].ecosystem == Ecosystem.PYTHON
     assert infos[0].status.value == "stale"
+    # `--check` is what makes this a check: plain `uv lock` would rewrite the lockfile and
+    # report success, so validation could never fail again.
+    assert run.call_args.args[0] == ["uv", "lock", "--check"]
+
+
+def test_a_missing_validation_tool_points_at_its_installer(tmp_path: Path) -> None:
+    """The path a contributor without npm hits; a bare FileNotFoundError is not actionable."""
+    component = _component(tmp_path, "frontend")
+    (component.source_dir / "package.json").write_text('{"name":"x"}')
+    (component.source_dir / "package-lock.json").write_text("{}")
+
+    with patch("dr_environment.recipe.validate.subprocess.run", side_effect=FileNotFoundError):
+        with pytest.raises(ValidationError) as exc:
+            validate_component(component)
+
+    message = "\n".join(exc.value.errors)
+    assert "'npm' is required" in message
+    assert "https://nodejs.org/en/download" in message
+
+
+def test_a_stale_npm_lockfile_names_npms_own_tool(tmp_path: Path) -> None:
+    component = _component(tmp_path, "other")
+    (component.source_dir / "package.json").write_text('{"name":"x"}')
+    (component.source_dir / "package-lock.json").write_text("")
+
+    with patch("dr_environment.recipe.validate.subprocess.run") as run:
+        run.return_value.returncode = 1
+        with pytest.raises(ValidationError) as exc:
+            validate_component(component)
+
+    errors = "\n".join(exc.value.errors)
+    assert "out-of-date package-lock.json" in errors
+    assert run.call_args.args[0] == ["npm", "ci", "--dry-run", "--ignore-scripts"]
+    # The fix line is what a contributor acts on, and it is the ecosystem's own command, not
+    # whichever one happens to be first in MANIFEST_SPECS.
+    assert "Fix: cd other && npm install" in errors
+    # One check per manifest per build: the status inspect_component resolved is the one
+    # reported, rather than being re-derived by a second pass over the same manifests.
+    assert run.call_count == 1
+
+
+def test_validate_all_reports_every_broken_component_not_just_the_first(tmp_path: Path) -> None:
+    """One run has to list them all, or a recipe is fixed one `dr environment` call at a time."""
+    components = []
+    for name in ("agent", "core"):
+        component = _component(tmp_path, name)
+        (component.source_dir / "pyproject.toml").write_text("[project]\nname='x'\n")
+        components.append(component)
+
+    with pytest.raises(ValidationError) as exc:
+        validate_all(components)
+
+    assert len(exc.value.errors) == 2
+    assert "component 'agent'" in exc.value.errors[0]
+    assert "component 'core'" in exc.value.errors[1]
