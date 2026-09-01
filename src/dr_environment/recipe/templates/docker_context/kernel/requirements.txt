@@ -1,6 +1,6 @@
 datarobot==3.18.0
 ecs-logging==2.3.0
-gunicorn==26.1.0
+gunicorn==26.2.0
 ipykernel==7.3.0
 jupyter-client==8.9.1
 jupyter-core==5.9.1
