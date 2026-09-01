@@ -1,0 +1,24 @@
+name: Dependabot automerge
+
+# Arms auto-merge on dependabot pull requests: GitHub merges once every required check
+# is green. The merge is performed by the github-actions app, which is on the branch
+# protection's review-bypass list, so no human approval is needed for these PRs.
+
+# `pull_request_target` so the workflow definition always comes from main — a PR cannot
+# edit this file to repurpose the write token. No PR code is checked out.
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
