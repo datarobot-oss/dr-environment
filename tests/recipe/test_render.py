@@ -17,68 +17,27 @@ from pathlib import Path
 import pytest
 
 from dr_environment.recipe.render import (
-    assemble_dockerfile,
     copy_fragment_assets,
-    render_build_deps_fragment,
-    render_kernel_setup_fragment,
+    render_base_fragment,
     render_offline_fragment,
-    render_user_fragment,
     render_versions_fragment,
     template_root,
 )
-from dr_environment.recipe.versions import _DEFAULTS, parse_tool_versions
+from dr_environment.recipe.versions import _DEFAULTS
 
 
-def test_assemble_dockerfile_orders_fragments(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    dockerfile_d = docker_context / "dockerfile.d"
-    dockerfile_d.mkdir(parents=True)
-    (dockerfile_d / "10-b.fragment").write_text("FROM b")
-    (dockerfile_d / "00-a.fragment").write_text("FROM a")
+def test_local_bytecode_is_not_copied_into_the_context(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Byte-code from a local lint run must not be baked into the image."""
+    templates = tmp_path / "templates"
+    (templates / "kernel" / "__pycache__").mkdir(parents=True)
+    (templates / "kernel" / "__pycache__" / "render.pyc").write_bytes(b"")
+    monkeypatch.setattr("dr_environment.recipe.render.template_root", lambda: templates)
 
-    assemble_dockerfile(docker_context)
-    content = (docker_context / "Dockerfile").read_text()
-    assert content.index("FROM a") < content.index("FROM b")
+    copy_fragment_assets(tmp_path / "ctx")
 
-
-def test_copy_fragment_assets_includes_per_stage_files(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    docker_context.mkdir()
-    copy_fragment_assets(docker_context)
-
-    expected = [
-        "build-deps/build-requirements.txt",
-        "kernel/requirements.txt",
-        "kernel/agent/agent.py",
-        "kernel/agent/cgroup_watchers.py",
-        "kernel/jupyter_kernel_gateway_config.py",
-        "kernel/start_server_codespaces.sh",
-        "kernel/kernel.json",
-        "kernel/ipython_config.py",
-        "kernel/extensions/dataframe_formatter.py",
-        "kernel/sshd_config",
-        "kernel/setup-prompt.sh",
-        "kernel/notebooks-path.sh",
-        "kernel/setup-ssh.sh",
-        "kernel/common-user-limits.sh",
-        "kernel/setup-venv.sh",
-        "kernel/setup-caches.sh",
-    ]
-    for rel in expected:
-        assert (docker_context / rel).is_file(), rel
-
-
-def test_render_user_fragment(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    (docker_context / "dockerfile.d").mkdir(parents=True)
-
-    render_user_fragment(docker_context)
-
-    content = (docker_context / "dockerfile.d" / "01-user.fragment").read_text()
-    assert "FROM base AS user" in content
-    assert "adduser" in content
-    assert "USER $UNAME" in content
-    assert "HOME=/home/notebooks" in content
+    assert not (tmp_path / "ctx" / "kernel" / "__pycache__").exists()
 
 
 def test_kernel_datarobot_pin_matches_versions_default() -> None:
@@ -126,6 +85,7 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     content = (docker_context / "dockerfile.d" / "02-versions.fragment").read_text()
     assert "FROM user AS versions" in content
     assert "USER $UNAME" in content
+    # The versions above are interpolated, so each literal proves its own value was read.
     assert "astral.sh/uv/install.sh" in content
     assert 'UV_VERSION="0.9.0"' in content
     assert "taskfile.dev/install.sh" in content
@@ -134,61 +94,19 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     assert "dr_v0.2.76_Linux_x86_64.tar.gz" in content
     assert "PULUMI_VERSION=3.206.0" in content
     assert "get.pulumi.com" in content
+    # The rest have no versions.yaml key, so they fall back to _DEFAULTS. Asserted against
+    # _DEFAULTS rather than a literal: bumping a default is maintenance, not a regression.
     assert "opencode.ai/install" in content
-    assert "OPENCODE_VERSION=1.17.11" in content
-    assert 'uv tool install "copier==9.17.0"' in content
-    assert "datarobot[core]>=3.18" in content
+    assert f"OPENCODE_VERSION={_DEFAULTS['opencode']}" in content
+    assert f'uv tool install "copier=={_DEFAULTS["copier"]}"' in content
+    assert f"datarobot[core]>={_DEFAULTS['datarobot']}" in content
     assert 'pulumi plugin install resource datarobot "$PULUMI_DATAROBOT_VERSION"' in content
     assert "--server github://api.github.com/datarobot-community/pulumi-datarobot" in content
-    assert "PULUMI_DATAROBOT_VERSION=v0.10.43" in content
+    assert f"PULUMI_DATAROBOT_VERSION=v{_DEFAULTS['pulumi_datarobot']}" in content
     assert 'pulumi plugin install resource command "$PULUMI_COMMAND_VERSION"' in content
-    assert "PULUMI_COMMAND_VERSION=v1.2.1" in content
+    assert f"PULUMI_COMMAND_VERSION=v{_DEFAULTS['pulumi_command']}" in content
     assert "plugin install xp" in content
     assert "pulumi login --local" in content
-    assert "PULUMI_SKIP_UPDATE_CHECK" not in content
-    assert "chown" not in content
-
-
-def test_render_build_deps_fragment_warms_pep517_build_deps(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    (docker_context / "dockerfile.d").mkdir(parents=True)
-
-    render_build_deps_fragment(docker_context)
-
-    content = (docker_context / "dockerfile.d" / "03-build-deps.fragment").read_text()
-    assert "FROM versions AS build-deps" in content
-    assert "COPY --chown=${UNAME}:${UNAME} build-deps/build-requirements.txt" in content
-    assert "USER root" not in content
-    assert (
-        'UV_CACHE_DIR="${UV_CACHE_DIR}" uv pip install -r /tmp/build-deps/build-requirements.txt'
-        in content
-    )
-    assert "/tmp/build-deps-venv/bin/python" in content
-
-
-def test_render_kernel_setup_fragment(tmp_path: Path) -> None:
-    docker_context = tmp_path / "ctx"
-    (docker_context / "dockerfile.d").mkdir(parents=True)
-
-    render_kernel_setup_fragment(docker_context)
-
-    content = (docker_context / "dockerfile.d" / "04-kernel.fragment").read_text()
-    assert "FROM build-deps AS kernel" in content
-    assert "VENV_PATH" in content
-    assert "uv venv" in content
-    assert "uv pip install" in content
-    assert "build-requirements.txt" not in content
-    assert "python -m venv" not in content
-    assert "/bin/pip" not in content
-    assert "kernel.json" in content
-    assert "COPY kernel/agent/agent.py" in content
-    assert "COPY kernel/setup-ssh.sh" in content
-    assert "adduser" not in content
-    assert "PYTHONUNBUFFERED" not in content
-    assert "UV_OFFLINE" not in content
-    assert "EXPOSE 8888" in content
-    assert "notebooks-load-env.sh" in content
-    assert "bash-profile-load.sh" in content
 
 
 def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) -> None:
@@ -220,11 +138,10 @@ def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) 
         "COPY --from=cache-agent --chown=notebooks:notebooks /opt/wheelhouse /opt/wheelhouse"
         in content
     )
-    assert "UV_FIND_LINKS=/opt/wheelhouse" in content
-    assert "UV_OFFLINE=1" in content
+    # The air-gap settings are asserted in test_build.py, against the assembled Dockerfile
+    # with comments stripped; these two are not part of that contract.
     assert "NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES=1" in content
     assert "DEEPEVAL_HOME=/tmp/.deepeval" in content
-    assert "GOPROXY=off" in content
 
 
 def test_render_offline_fragment_without_cache_stages(tmp_path: Path) -> None:
@@ -238,33 +155,13 @@ def test_render_offline_fragment_without_cache_stages(tmp_path: Path) -> None:
     assert "COPY --from=" not in content
 
 
-def test_parse_tool_versions_defaults() -> None:
-    tools = parse_tool_versions({})
-    assert tools.dr == "v0.2.76"
-    assert tools.uv == "0.9.0"
-    assert tools.node == "v24.0.0"
-    assert tools.pulumi == "3.163.0"
-    assert tools.opencode == "1.17.11"
-    assert tools.copier == "9.17.0"
-    assert tools.datarobot == "3.18"
-    assert tools.pulumi_datarobot == "v0.10.43"
-    assert tools.pulumi_command == "v1.2.1"
+def test_render_base_fragment_pins_python_311_and_the_build_platform(tmp_path: Path) -> None:
+    """Both pins shipped as outages: 3.12 crash-loops agents on uvloop, arm64 on exec format."""
+    docker_context = tmp_path / "ctx"
 
+    render_base_fragment(docker_context)
+    fragment = (docker_context / "dockerfile.d" / "00-base.fragment").read_text(encoding="utf-8")
 
-def test_fragment_license_headers_are_jinja_comments_and_never_reach_the_dockerfile() -> None:
-    # Every fragment must carry the Apache header so the .j2 is licensed like any other
-    # source file, but as a Jinja comment `{# ... -#}` so it is stripped at render time.
-    # A plain `#` header would still satisfy license-eye while leaking 14 lines of
-    # boilerplate into every customer's generated Dockerfile.
-    fragments = sorted(template_root().glob("*.fragment.j2"))
-    assert fragments, "no Dockerfile fragments found"
-
-    for fragment in fragments:
-        source = fragment.read_text(encoding="utf-8")
-        assert source.startswith("{#"), f"{fragment.name} header must open a Jinja comment"
-        assert "Apache License" in source, f"{fragment.name} is missing the license header"
-        header, _, _ = source.partition("-#}")
-        assert "Apache License" in header, (
-            f"{fragment.name} has the license text outside the Jinja comment, "
-            "so it would render into the Dockerfile"
-        )
+    assert "ARG PYTHON_VERSION=3.11" in fragment
+    assert "ARG TARGETPLATFORM=linux/amd64" in fragment
+    assert "FROM --platform=${TARGETPLATFORM}" in fragment

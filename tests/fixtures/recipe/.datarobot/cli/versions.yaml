@@ -1,0 +1,9 @@
+---
+# Deliberately off the built-in defaults, so a fragment rendered from these values proves
+# the recipe's own file was read rather than the fallbacks.
+uv:
+  name: uv Python package manager
+  minimum-version: 0.10.3
+task:
+  name: Task
+  minimum-version: 3.45.4

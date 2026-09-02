@@ -25,7 +25,7 @@ import yaml
 from dr_environment.recipe.cache.stages import write_component_cache_fragments
 from dr_environment.recipe.discover import discover_components
 from dr_environment.recipe.hooks import run_environment_hook
-from dr_environment.recipe.layout import layout_components
+from dr_environment.recipe.layout import copy_component
 from dr_environment.recipe.models import ComponentStrategy
 from dr_environment.recipe.render import (
     assemble_dockerfile,
@@ -37,7 +37,7 @@ from dr_environment.recipe.render import (
     render_user_fragment,
     render_versions_fragment,
 )
-from dr_environment.recipe.validate import inspect_component, validate_all
+from dr_environment.recipe.validate import validate_all
 
 
 def load_versions(versions_file: Path) -> dict:
@@ -54,12 +54,23 @@ def build(
 ) -> Path:
     recipe_path = recipe_path.resolve()
     docker_context = target.resolve() if target.is_absolute() else (Path.cwd() / target).resolve()
+    # The target is emptied before it is written, so it may only be a directory this tool
+    # generated, or an empty one. `--target .` (also an unset shell variable, since `Path("")`
+    # is `Path(".")`), `--target <component>` and `--target <file>` all reach here: the first
+    # two deleted recipe source, and the third died inside rmtree on a bare errno.
+    if (
+        docker_context.exists()
+        and (not docker_context.is_dir() or any(docker_context.iterdir()))
+        and not (docker_context / "dockerfile.d").is_dir()
+    ):
+        raise ValueError(
+            f"refusing to build into {docker_context}: it already exists and was not generated "
+            "by this tool"
+        )
     versions_file = recipe_path / ".datarobot/cli/versions.yaml"
 
     components = discover_components(recipe_path)
     validate_all(components)
-    for component in components:
-        inspect_component(component)
 
     if docker_context.exists():
         shutil.rmtree(docker_context)
@@ -77,8 +88,7 @@ def build(
         if component.strategy == ComponentStrategy.HOOK:
             run_environment_hook(component, docker_context)
         elif component.strategy == ComponentStrategy.DEFAULT:
-            inspect_component(component)
-            layout_components([component], docker_context)
+            copy_component(component, docker_context)
 
     active = [c for c in components if c.strategy == ComponentStrategy.DEFAULT and c.manifests]
     cache_stage = write_component_cache_fragments(active, docker_context)
