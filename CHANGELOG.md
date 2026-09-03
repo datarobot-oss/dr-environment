@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.4
+- Bump the default `datarobot` version from `3.18` to `3.19.0` (and the kernel venv's matching pin), the first release carrying the `drdev` entry point (`datarobot/public_api_client#4165`). A recipe that doesn't pin its own `datarobot` minimum-version in `versions.yaml` was silently getting an offline image without `drdev`.
+
 ## 0.1.3
 - Pin `datarobot-oss/github-actions` at `0.0.25`, which tags the built commit rather than main's tip. Releases no longer need serialising, so the `Release` concurrency group is gone.
 
