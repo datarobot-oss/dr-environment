@@ -50,7 +50,10 @@ _DEFAULTS = {
     "opencode": "1.17.11",
     "copier": "9.17.0",
     "datarobot": "3.18",
-    "pulumi_datarobot": "0.10.43",
+    # recipe-datarobot-agent-application's infra/pyproject.toml requires the matching
+    # pulumi-datarobot Python SDK bindings at >=0.11.1; keep this plugin binary default
+    # in step so the two don't resolve to mismatched versions.
+    "pulumi_datarobot": "0.11.1",
     "pulumi_command": "1.2.1",
 }
 
