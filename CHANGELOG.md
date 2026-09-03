@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.4
+- Bump the default `pulumi_datarobot` (provider plugin binary) version from `0.10.43` to `0.11.1`, matching what `recipe-datarobot-agent-application`'s `infra/pyproject.toml` requires for the `pulumi-datarobot` Python SDK bindings. The stale default would bake a plugin binary older than the SDK it needs to match into any recipe that doesn't pin its own `pulumi_datarobot` in `versions.yaml`.
+
 ## 0.1.3
 - Pin `datarobot-oss/github-actions` at `0.0.25`, which tags the built commit rather than main's tip. Releases no longer need serialising, so the `Release` concurrency group is gone.
 
