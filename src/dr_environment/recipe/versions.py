@@ -49,7 +49,10 @@ _DEFAULTS = {
     "pulumi": "3.163.0",
     "opencode": "1.17.11",
     "copier": "9.17.0",
-    "datarobot": "3.18",
+    # 3.19.0 is the first release with the `drdev` entry point (datarobot/public_api_client#4165);
+    # a recipe that doesn't pin its own `datarobot` minimum-version would otherwise silently get an
+    # image without drdev.
+    "datarobot": "3.19.0",
     "pulumi_datarobot": "0.10.43",
     "pulumi_command": "1.2.1",
 }
