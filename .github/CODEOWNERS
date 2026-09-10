@@ -1,1 +1,6 @@
 * @datarobot-oss/buzok @datarobot-oss/mcp
+
+# Bot-maintained pins, unowned so dependabot's bumps need no code-owner review.
+/uv.lock
+/src/dr_environment/recipe/templates/docker_context/kernel/requirements.txt
+/src/dr_environment/recipe/templates/docker_context/build-deps/build-requirements.txt

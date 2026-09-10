@@ -1,7 +1,6 @@
 name: Changelog
 
-# Fails a pull request that did not update CHANGELOG.md, bots included: a dependency
-# bump can change what ships. Waivable with the `skip-changelog` label.
+# Fails a pull request that did not update CHANGELOG.md. Waivable with `skip-changelog`.
 
 # `labeled` and `unlabeled` are listed because naming any type replaces the defaults.
 on:
