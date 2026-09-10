@@ -8,6 +8,8 @@ updates:
     labels:
       - "dependencies"
       - "00 - Ready for Review"
+      - "skip-changelog"
+      - "skip-version-bump"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -17,6 +19,8 @@ updates:
     labels:
       - "dependencies"
       - "00 - Ready for Review"
+      - "skip-changelog"
+      - "skip-version-bump"
     groups:
       actions:
         patterns:
@@ -34,3 +38,5 @@ updates:
     labels:
       - "dependencies"
       - "00 - Ready for Review"
+      - "skip-changelog"
+      - "skip-version-bump"

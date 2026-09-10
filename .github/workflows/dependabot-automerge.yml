@@ -1,0 +1,27 @@
+name: Dependabot automerge
+
+# Approves dependabot bumps and merges them once checks are green.
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'datarobot-oss/dr-environment'
+    runs-on: ubuntu-latest
+    steps:
+      # Reviews survive pushes here, so a foreign commit could ride an armed branch in.
+      - name: Approve and arm auto-merge
+        run: |
+          if [ "$ACTOR" = 'dependabot[bot]' ]; then
+            gh pr review --approve "$PR_URL"
+            gh pr merge --auto --squash "$PR_URL"
+          else
+            gh pr merge --disable-auto "$PR_URL"
+          fi
+        env:
+          ACTOR: ${{ github.actor }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
