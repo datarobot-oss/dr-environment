@@ -34,6 +34,8 @@ MANIFEST_SPECS: tuple[tuple[str, str, Ecosystem, str], ...] = (
     ("go.mod", "go.sum", Ecosystem.GO, "go mod tidy"),
 )
 
+_FIX_COMMANDS = {ecosystem: fix for _, _, ecosystem, fix in MANIFEST_SPECS}
+
 # Each ecosystem is validated with its own native tool, so a recipe pulls in whichever of these its
 # components use. Point the user at the installer rather than leaking a bare FileNotFoundError.
 TOOL_INSTALL_HINTS: dict[str, str] = {
@@ -76,24 +78,14 @@ def validate_component(component: Component) -> None:
     if component.strategy == ComponentStrategy.SKIP:
         return
 
-    errors: list[str] = []
-    manifests = inspect_component(component)
-
-    if component.strategy == ComponentStrategy.DEFAULT and not manifests:
-        return
-
-    for manifest_name, lock_name, ecosystem, fix_cmd in MANIFEST_SPECS:
-        manifest = find_manifest_file(component.source_dir, manifest_name)
-        if manifest is None:
-            continue
-        lockfile = manifest.parent / lock_name
-        status, message = _check_lockfile(manifest, lockfile, ecosystem)
-        if status != LockfileStatus.OK:
-            rel = component.source_dir.name
-            errors.append(
-                f"ERROR: component '{component.name}' {message}\n  Fix: cd {rel} && {fix_cmd}"
-            )
-
+    # Reuse the statuses inspect_component already resolved: re-deriving them here would run
+    # every ecosystem's check a second time, and `npm ci --dry-run` is the slowest part of a build.
+    errors = [
+        f"ERROR: component '{component.name}' {info.message}\n"
+        f"  Fix: cd {component.source_dir.name} && {_FIX_COMMANDS[info.ecosystem]}"
+        for info in inspect_component(component)
+        if info.status != LockfileStatus.OK
+    ]
     if errors:
         raise ValidationError(errors)
 

@@ -14,39 +14,43 @@
 # limitations under the License.
 from pathlib import Path
 
-from dr_environment.recipe.cache.stages import PREVIOUS_STAGE, write_component_cache_fragment
+from dr_environment.recipe.cache.stages import write_component_cache_fragment
 from dr_environment.recipe.layout import LOCAL_SHARED_PACKAGE
 from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
 
 
-def test_cache_stages_chain_from_kernel() -> None:
-    assert PREVIOUS_STAGE == "kernel"
+def _component(tmp_path: Path, name: str, ecosystem: Ecosystem, order: int) -> Component:
+    """Build a component; the fragment comes from the ecosystem alone, so paths go unread."""
+    return Component(
+        name=name,
+        source_dir=tmp_path,
+        strategy=ComponentStrategy.DEFAULT,
+        fragment_order=order,
+        manifests=[
+            ManifestInfo(ecosystem=ecosystem, manifest=tmp_path / "manifest", lockfile=None)
+        ],
+    )
 
 
 def test_python_cache_fragment_uses_uv_sync(tmp_path: Path) -> None:
-    component = Component(
-        name="agent",
-        source_dir=tmp_path,
-        strategy=ComponentStrategy.DEFAULT,
-        fragment_order=10,
-        manifests=[
-            ManifestInfo(
-                ecosystem=Ecosystem.PYTHON,
-                manifest=tmp_path / "pyproject.toml",
-                lockfile=tmp_path / "uv.lock",
-            )
-        ],
-    )
+    component = _component(tmp_path, "agent", Ecosystem.PYTHON, 10)
     docker_context = tmp_path / "ctx"
+
     write_component_cache_fragment(component, docker_context, previous_stage="kernel")
 
     content = (docker_context / "dockerfile.d" / "10-cache-agent.fragment").read_text()
     assert content.startswith("FROM kernel AS cache-agent")
+    # The dir the offline stage copies out of; warming any other one ships an empty cache.
+    assert "ENV UV_CACHE_DIR=/opt/cache/uv" in content
     assert "COPY --chown=notebooks:notebooks components/agent/" in content
     assert "uv sync" in content
     assert "--all-extras" in content
     assert "--all-groups" in content
+    # Every stage descends from `FROM --platform=${TARGETPLATFORM}`, so resolving for another
+    # platform would put wheels in the cache the image cannot run.
     assert "--python-platform" not in content
+    # Ownership is the `COPY --chown` above; the recursive chmod belongs to the throwaway
+    # cache-perms stage, since a `chown -R` here would copy the whole cache into this layer.
     assert "USER root" not in content
     assert "chown -R notebooks" not in content
     assert f"--no-install-package {LOCAL_SHARED_PACKAGE}" in content
@@ -59,23 +63,39 @@ def test_python_cache_fragment_uses_uv_sync(tmp_path: Path) -> None:
 
 
 def test_python_cache_fragment_core_skips_no_install_package(tmp_path: Path) -> None:
-    component = Component(
-        name=LOCAL_SHARED_PACKAGE,
-        source_dir=tmp_path,
-        strategy=ComponentStrategy.DEFAULT,
-        fragment_order=11,
-        manifests=[
-            ManifestInfo(
-                ecosystem=Ecosystem.PYTHON,
-                manifest=tmp_path / "pyproject.toml",
-                lockfile=tmp_path / "uv.lock",
-            )
-        ],
-    )
+    component = _component(tmp_path, LOCAL_SHARED_PACKAGE, Ecosystem.PYTHON, 11)
     docker_context = tmp_path / "ctx"
+
     write_component_cache_fragment(component, docker_context, previous_stage="cache-agent")
 
     content = (docker_context / "dockerfile.d" / "11-cache-core.fragment").read_text()
-    assert "--all-extras" in content
-    assert "--all-groups" in content
     assert f"--no-install-package {LOCAL_SHARED_PACKAGE}" not in content
+
+
+def test_go_cache_fragment_downloads_modules_into_the_shared_cache(tmp_path: Path) -> None:
+    component = _component(tmp_path, "gateway", Ecosystem.GO, 12)
+    docker_context = tmp_path / "ctx"
+
+    write_component_cache_fragment(component, docker_context, previous_stage="cache-agent")
+
+    content = (docker_context / "dockerfile.d" / "12-cache-gateway.fragment").read_text()
+    assert content.startswith("FROM cache-agent AS cache-gateway")
+    assert "ENV GOMODCACHE=/opt/cache/go/pkg/mod GOCACHE=/opt/cache/go/build" in content
+    # `all`, not the default: the offline image has to serve test and tool imports too.
+    assert "RUN go mod download all" in content
+
+
+def test_npm_cache_fragment_installs_dev_dependencies_into_the_shared_cache(
+    tmp_path: Path,
+) -> None:
+    component = _component(tmp_path, "frontend", Ecosystem.NPM, 12)
+    docker_context = tmp_path / "ctx"
+
+    write_component_cache_fragment(component, docker_context, previous_stage="cache-agent")
+
+    content = (docker_context / "dockerfile.d" / "12-cache-frontend.fragment").read_text()
+    assert content.startswith("FROM cache-agent AS cache-frontend")
+    assert "ENV NPM_CONFIG_CACHE=/opt/cache/npm" in content
+    # `--include=dev` is what puts the build tooling in the cache; without it an offline
+    # frontend build has no devDependencies to install from.
+    assert "RUN npm ci --include=dev --cache /opt/cache/npm" in content

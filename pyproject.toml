@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dr-environment"
-version = "0.1.3"
+version = "0.1.4"
 description = "Build DataRobot execution environment Docker contexts with offline dependency caches"
 readme = "README.md"
 requires-python = ">=3.11, <3.14"
@@ -51,6 +51,9 @@ packages = ["src/dr_environment"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# -ra: the fixture recipe skips without uv or npm on PATH, taking every end-to-end test with
+# it. Without a reason line that is a bare `s` in the output.
+addopts = ["-ra"]
 
 [tool.ruff]
 line-length = 100

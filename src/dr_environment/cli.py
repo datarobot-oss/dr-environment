@@ -70,9 +70,8 @@ def recipe_cmd(recipe_path: Path, target: str, no_tarball: bool) -> None:
         tarball=not no_tarball,
     )
     click.echo(f"Built docker context: {docker_context}")
-    archive = docker_context.parent / "docker_context.tar.gz"
-    if archive.is_file():
-        click.echo(f"Archive: {archive}")
+    if not no_tarball:
+        click.echo(f"Archive: {docker_context.parent / 'docker_context.tar.gz'}")
 
 
 def main() -> None:

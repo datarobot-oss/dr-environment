@@ -52,6 +52,18 @@ jobs:
       - name: Type check (mypy)
         run: uv run mypy src
 
+      # Nothing else lints these COPY'd scripts: templates are excluded from ruff and mypy, and
+      # hadolint reads RUN lines only. F,E9 since the code is adapted; jupyter injects the configs' `c`.
+      - name: Lint the shipped kernel assets
+        env:
+          KERNEL: src/dr_environment/recipe/templates/docker_context/kernel
+        run: |
+          uv run ruff check --isolated --select F,E9 \
+            --per-file-ignores '*_config.py:F821' "${KERNEL}"
+          docker run --rm -v "$(pwd)":/mnt -w /mnt \
+            koalaman/shellcheck-alpine:v0.11.0 \
+            shellcheck -S warning "${KERNEL}"/*.sh
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -119,12 +131,83 @@ jobs:
       - name: Validate package metadata
         run: uvx twine check dist/*
 
+      # `twine check` reads metadata only; the `dr` CLI discovers this plugin by running the
+      # installed console script. The fields are pinned in tests/test_cli.py; this proves the wiring.
+      - name: Verify the plugin manifest of the installed wheel
+        env:
+          UV_TOOL_BIN_DIR: ${{ runner.temp }}/tool-bin
+        run: |
+          set -euo pipefail
+          uv tool install --force dist/*.whl
+          manifest="$("${UV_TOOL_BIN_DIR}/dr-environment" --dr-plugin-manifest)"
+          echo "$manifest"
+          test "$(jq -r .name <<<"$manifest")" = 'environment'
+
       - name: Upload dist
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: dist
           path: dist
+          if-no-files-found: ignore
+
+  # Every other job here tests the code that writes the docker context. This one generates
+  # the context from the fixture recipe and inspects what came out, without building a layer.
+  context:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      # Generated rather than committed, since validation runs each ecosystem's own check. npm
+      # comes from the runner image; both components are dependency-free, so no index is reached.
+      - name: Lock the fixture recipe
+        run: |
+          uv lock --directory tests/fixtures/recipe/agent
+          npm install --package-lock-only --ignore-scripts \
+            --prefix tests/fixtures/recipe/frontend
+
+      - name: Generate the docker context
+        run: >
+          uv run dr-environment recipe
+          --recipe-path tests/fixtures/recipe
+          --target ${{ runner.temp }}/docker_context
+          --no-tarball
+
+      - name: Lint the generated Dockerfile
+        run: |
+          docker run --rm -i -v "$(pwd)/.hadolint.yaml":/.hadolint.yaml:ro \
+            ghcr.io/hadolint/hadolint:v2.14.0-alpine \
+            hadolint --config /.hadolint.yaml - < "${{ runner.temp }}/docker_context/Dockerfile"
+
+      # Resolves the stage graph and the base image without building a layer, so a renamed
+      # stage fails here in seconds. RedundantTargetPlatform is skipped: the ARG shadowing is
+      # deliberate, to force linux/amd64. Unpinned since BuildKit comes with the runner and adds rules.
+      - name: Check the generated Dockerfile
+        run: |
+          docker buildx build --check \
+            --build-arg BUILDKIT_DOCKERFILE_CHECK=skip=RedundantTargetPlatform \
+            "${{ runner.temp }}/docker_context"
+
+      - name: Upload the generated context
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: docker-context
+          path: ${{ runner.temp }}/docker_context
           if-no-files-found: ignore
 
   licenses:

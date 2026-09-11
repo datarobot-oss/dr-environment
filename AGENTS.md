@@ -76,7 +76,7 @@ flowchart TD
     D --> E[render base/user/versions/build-deps/kernel fragments]
     E --> F{per component}
     F -->|HOOK| G[task environment]
-    F -->|DEFAULT| H[layout_components copy manifests]
+    F -->|DEFAULT| H[copy_component copy manifests]
     G --> I[write_component_cache_fragments]
     H --> I
     I --> J[render_offline_fragment]
@@ -197,7 +197,9 @@ ls docker_context/dockerfile.d/
 grep -E "uv sync|UV_OFFLINE" docker_context/Dockerfile
 ```
 
-There are no Docker build integration tests in CI yet. Manually verify with `docker build --platform linux/amd64`.
+CI generates a context from `tests/fixtures/recipe`, lints it with hadolint and resolves its
+stage graph with `docker buildx build --check`. A real `docker build` is still manual:
+`docker build --platform linux/amd64`.
 
 ## Common pitfalls
 

@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.4
+- Test the context build end to end in tests and CI; fix the bugs found along the way.
+
 ## 0.1.3
 - Pin `datarobot-oss/github-actions` at `0.0.25`, which tags the built commit rather than main's tip. Releases no longer need serialising, so the `Release` concurrency group is gone.
 
