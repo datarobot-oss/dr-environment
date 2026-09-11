@@ -1,7 +1,6 @@
 ---
-# Minimal recipe for the end-to-end build test: a Python and an npm component (DEFAULT), one
-# with no manifest (SKIP), and an internal include. Dependency-free, so locking stays offline.
-# No Go component: that would require the toolchain; unit tests cover the Go fragment.
+# Minimal end-to-end recipe: a Python and an npm component, a manifest-less SKIP, an internal
+# include. Dependency-free so locking stays offline; no Go component, that needs the toolchain.
 version: '3'
 
 # `includes:` stays the last top-level key: test_build.py's hook test appends a component to it.

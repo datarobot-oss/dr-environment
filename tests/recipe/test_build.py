@@ -58,7 +58,6 @@ def context(recipe: Path, tmp_path: Path) -> Path:
 
 @pytest.fixture
 def dockerfile(context: Path) -> str:
-    """Read the assembled Dockerfile with comment lines dropped."""
     return _instructions((context / "Dockerfile").read_text(encoding="utf-8"))
 
 

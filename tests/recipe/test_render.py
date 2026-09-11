@@ -29,7 +29,6 @@ from dr_environment.recipe.versions import _DEFAULTS
 def test_local_bytecode_is_not_copied_into_the_context(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Byte-code from a local lint run must not be baked into the image."""
     templates = tmp_path / "templates"
     (templates / "kernel" / "__pycache__").mkdir(parents=True)
     (templates / "kernel" / "__pycache__" / "render.pyc").write_bytes(b"")

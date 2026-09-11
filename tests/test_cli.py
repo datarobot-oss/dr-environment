@@ -40,37 +40,38 @@ def test_plugin_manifest_matches_the_dr_cli_contract(
     }
 
 
-def test_recipe_command_writes_the_context_and_the_archive(recipe: Path, tmp_path: Path) -> None:
-    runner = CliRunner()
+def test_recipe_command_writes_the_context_and_the_archive(
+    recipe: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
-        result = runner.invoke(cli, ["recipe", "--recipe-path", str(recipe)])
+    result = CliRunner().invoke(cli, ["recipe", "--recipe-path", str(recipe)])
 
-        assert result.exit_code == 0, result.output
-        assert "Built docker context:" in result.output
-        assert "Archive:" in result.output
-        assert Path("docker_context/Dockerfile").is_file()
-        assert Path("docker_context.tar.gz").is_file()
+    assert result.exit_code == 0, result.output
+    assert "Built docker context:" in result.output
+    assert "Archive:" in result.output
+    assert Path("docker_context/Dockerfile").is_file()
+    assert Path("docker_context.tar.gz").is_file()
 
 
-def test_recipe_command_skips_the_archive_when_asked(recipe: Path, tmp_path: Path) -> None:
+def test_recipe_command_skips_the_archive_when_asked(
+    recipe: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The reported path used to be gated on the file existing rather than on the flag.
 
     A --no-tarball run in a reused directory then announced the previous run's stale archive.
     """
-    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    # A sentinel rather than no file at all: a previous run's archive legitimately stays
+    # on disk, and its survival is what proves this run neither wrote nor reported one.
+    archive = Path("docker_context.tar.gz")
+    archive.write_bytes(b"sentinel")
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
-        # A sentinel rather than no file at all: a previous run's archive legitimately stays
-        # on disk, and its survival is what proves this run neither wrote nor reported one.
-        archive = Path("docker_context.tar.gz")
-        archive.write_bytes(b"sentinel")
+    result = CliRunner().invoke(cli, ["recipe", "--recipe-path", str(recipe), "--no-tarball"])
 
-        result = runner.invoke(cli, ["recipe", "--recipe-path", str(recipe), "--no-tarball"])
-
-        assert result.exit_code == 0, result.output
-        assert "Archive:" not in result.output
-        assert archive.read_bytes() == b"sentinel", "--no-tarball still wrote an archive"
+    assert result.exit_code == 0, result.output
+    assert "Archive:" not in result.output
+    assert archive.read_bytes() == b"sentinel", "--no-tarball still wrote an archive"
 
 
 def test_a_recipe_without_a_taskfile_exits_nonzero_with_a_readable_error(
