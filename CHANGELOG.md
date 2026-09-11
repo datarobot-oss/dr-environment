@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Report the archive path from `--no-tarball` rather than from the file being present, so a reused directory no longer announces a stale archive.
 - Skip `__pycache__` when copying the kernel assets, so byte-code is no longer baked into the image.
 - Keep extras markers intact when stripping the local `core` package from an inline `dependencies` list, which split `datarobot[auth-authlib,core]` into two broken specifiers.
+- Read single-quoted inline `dependencies` lists when stripping `core`, rather than silently emptying them.
+- Quote `${VENV_PATH}/bin/python` in the Python cache stage's `uv sync`.
 - Inspect each component's lockfiles once per build rather than four times.
 - Name `task` and its installer when a component `environment` hook cannot run, rather than raising a bare `[Errno 2] No such file or directory`.
 - Test the context build, the model entrypoint and the hook contract end to end, and lint the generated Dockerfile and the shipped kernel assets in CI.

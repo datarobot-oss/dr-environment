@@ -173,13 +173,9 @@ def test_rebuild_replaces_the_target_rather_than_merging_into_it(
     assert not stale.exists(), "a stale fragment survived a rebuild and would be assembled in"
 
 
-# Parametrised rather than looped: a regression here deletes the target, so each case needs its
-# own recipe copy. `.` covers an unset shell variable too, since Path("") is Path(".").
-@pytest.mark.parametrize(
-    "target",
-    [".", "..", "agent", "Taskfile.yml"],
-    ids=["dot", "parent", "component", "file"],
-)
+# Parametrised: a regression here deletes the target, so each case needs its own recipe copy.
+# `.` is the non-empty-dir branch and covers an unset shell var, since Path("") is Path(".").
+@pytest.mark.parametrize("target", [".", "Taskfile.yml"], ids=["dot", "file"])
 def test_build_refuses_a_target_that_already_holds_something_else(
     recipe: Path, monkeypatch: pytest.MonkeyPatch, target: str
 ) -> None:

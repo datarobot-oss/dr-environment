@@ -54,10 +54,8 @@ def build(
 ) -> Path:
     recipe_path = recipe_path.resolve()
     docker_context = target.resolve() if target.is_absolute() else (Path.cwd() / target).resolve()
-    # The target is emptied before it is written, so it may only be a directory this tool
-    # generated, or an empty one. `--target .` (also an unset shell variable, since `Path("")`
-    # is `Path(".")`), `--target <component>` and `--target <file>` all reach here: the first
-    # two deleted recipe source, and the third died inside rmtree on a bare errno.
+    # The target is emptied first, so it may only be an empty directory or one this tool wrote:
+    # `--target .` (an unset shell var too) deleted recipe source, a file target died in rmtree.
     if (
         docker_context.exists()
         and (not docker_context.is_dir() or any(docker_context.iterdir()))

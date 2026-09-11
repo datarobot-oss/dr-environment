@@ -31,8 +31,7 @@ FIXTURE_RECIPE = Path(__file__).resolve().parent / "fixtures" / "recipe"
 def _locked_recipe(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Lock the fixture recipe once per session; tests copy from the result.
 
-    Generated rather than committed: `validate_all` runs each ecosystem's own check, which a
-    committed lockfile fails as soon as that tool changes its format.
+    Generated, not committed: a lockfile from another uv or npm fails its ecosystem's check.
     """
     for tool in ("uv", "npm"):
         if shutil.which(tool) is None:

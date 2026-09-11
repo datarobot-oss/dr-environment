@@ -1,10 +1,7 @@
 ---
-# Minimal recipe for the end-to-end context build test: a Python and an npm component
-# (DEFAULT), a component with no manifest (SKIP), and an internal include, which is never a
-# component. Both manifests are dependency-free, so their lockfile checks resolve offline.
-#
-# No Go component: `go mod verify` needs the Go toolchain, and this suite should not require it
-# of a contributor. The Go cache fragment and its lockfile check are covered by unit tests.
+# Minimal recipe for the end-to-end build test: a Python and an npm component (DEFAULT), one
+# with no manifest (SKIP), and an internal include. Dependency-free, so locking stays offline.
+# No Go component: that would require the toolchain; unit tests cover the Go fragment.
 version: '3'
 
 # `includes:` stays the last top-level key: test_build.py's hook test appends a component to it.
@@ -15,9 +12,8 @@ includes:
     taskfile: ./agent/Taskfile.yml
     dir: ./agent
     internal: true
-  # Include key deliberately unlike its `dir:` basename: the docker context lays a component
-  # out under the include key, and the cache stage COPYs that same path, so a fixture where
-  # the two match cannot tell the layout destination is keyed on the right one.
+  # Include key deliberately unlike its `dir:` basename: layout and the cache stage COPY are
+  # keyed on the include key, and a fixture where the two match could not tell.
   agent_app:
     taskfile: ./agent/Taskfile.yml
     dir: ./agent

@@ -12,10 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The entrypoint DataRobot runs for every deployed model.
+"""The entrypoint DataRobot runs for every deployed model, COPY'd to /opt/code/start_server.sh.
 
-`start_server_custom_model.sh` is COPY'd to /opt/code/start_server.sh and shipped into the
-image. CI lints its syntax with shellcheck; this runs it, with `uv`, `nat` and `python` stubbed.
+CI shellchecks its syntax; this runs it, with `uv`, `nat` and `python` stubbed.
 """
 
 from __future__ import annotations

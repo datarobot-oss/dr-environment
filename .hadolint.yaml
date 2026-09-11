@@ -1,11 +1,9 @@
 # Configuration for hadolint, which lints the generated Dockerfile in CI.
 ignored:
-  # "Last USER should not be root". hadolint applies this per stage, and the builder stages
-  # here end as root deliberately, to chmod the baked caches. The rule matters only for the
-  # final stage, which ends as `notebooks`; tests/recipe/test_build.py asserts that.
+  # "Last USER should not be root" fires per stage; the builder stages end as root on purpose,
+  # to chmod the baked caches. Only the final stage matters; test_build.py asserts it is not root.
   - DL3002
 
-# Warnings and errors gate a pull request; hadolint's info-level style suggestions are
-# printed but do not, because the layer splitting they object to is what makes a partial
-# rebuild reuse the cached apk and cache-warm steps.
+# Warnings and errors gate a pull request; info-level style suggestions print but do not,
+# since the layer splitting they object to is what lets a partial rebuild reuse cached steps.
 failure-threshold: warning

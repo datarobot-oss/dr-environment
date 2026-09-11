@@ -50,6 +50,13 @@ def test_strip_local_shared_python_package_keeps_extras_in_an_inline_list() -> N
     assert stripped == '[project]\ndependencies = ["datarobot[auth-authlib,core]>=3.9.1"]\n'
 
 
+def test_strip_local_shared_python_package_reads_single_quoted_lists() -> None:
+    """TOML allows single quotes; entries the old pattern missed emptied the whole list."""
+    stripped = strip_local_shared_python_package("[project]\ndependencies = ['requests', 'core']\n")
+
+    assert stripped == "[project]\ndependencies = ['requests']\n"
+
+
 def test_copy_component_strips_core_from_the_copied_pyproject(tmp_path: Path) -> None:
     """A multi-line `dependencies` list, which the inline-list regex above cannot reach."""
     pyproject = """[project]

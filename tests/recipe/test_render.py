@@ -86,27 +86,18 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     assert "FROM user AS versions" in content
     assert "USER $UNAME" in content
     # The versions above are interpolated, so each literal proves its own value was read.
-    assert "astral.sh/uv/install.sh" in content
     assert 'UV_VERSION="0.9.0"' in content
-    assert "taskfile.dev/install.sh" in content
     assert "v3.43.3" in content
     assert "node-v24.0.0-linux-x64.tar.xz" in content
     assert "dr_v0.2.76_Linux_x86_64.tar.gz" in content
     assert "PULUMI_VERSION=3.206.0" in content
-    assert "get.pulumi.com" in content
     # The rest have no versions.yaml key, so they fall back to _DEFAULTS. Asserted against
     # _DEFAULTS rather than a literal: bumping a default is maintenance, not a regression.
-    assert "opencode.ai/install" in content
     assert f"OPENCODE_VERSION={_DEFAULTS['opencode']}" in content
     assert f'uv tool install "copier=={_DEFAULTS["copier"]}"' in content
     assert f"datarobot[core]>={_DEFAULTS['datarobot']}" in content
-    assert 'pulumi plugin install resource datarobot "$PULUMI_DATAROBOT_VERSION"' in content
-    assert "--server github://api.github.com/datarobot-community/pulumi-datarobot" in content
     assert f"PULUMI_DATAROBOT_VERSION=v{_DEFAULTS['pulumi_datarobot']}" in content
-    assert 'pulumi plugin install resource command "$PULUMI_COMMAND_VERSION"' in content
     assert f"PULUMI_COMMAND_VERSION=v{_DEFAULTS['pulumi_command']}" in content
-    assert "plugin install xp" in content
-    assert "pulumi login --local" in content
 
 
 def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) -> None:

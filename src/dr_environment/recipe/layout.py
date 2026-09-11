@@ -46,10 +46,11 @@ def strip_local_shared_python_package(pyproject_text: str) -> str:
     def _clean_inline_deps(match: re.Match[str]) -> str:
         # Match whole quoted strings rather than splitting on commas: a comma inside an
         # extras marker, as in "datarobot[auth-authlib,core]>=3.9.1", is not a separator.
+        # TOML allows single quotes too; entries the pattern missed emptied the whole list.
         kept = [
             dep
-            for dep in re.findall(r'"[^"]*"', match.group(1))
-            if dep.strip('"') != LOCAL_SHARED_PACKAGE
+            for dep in re.findall(r'"[^"]*"|\'[^\']*\'', match.group(1))
+            if dep.strip("\"'") != LOCAL_SHARED_PACKAGE
         ]
         return f"dependencies = [{', '.join(kept)}]"
 
@@ -70,7 +71,7 @@ def strip_local_shared_python_package(pyproject_text: str) -> str:
             in_dependencies = True
         elif in_dependencies and stripped == "]":
             in_dependencies = False
-        elif in_dependencies and re.fullmatch(r'"core",?', stripped):
+        elif in_dependencies and re.fullmatch(r"[\"']core[\"'],?", stripped):
             continue
         out.append(line)
 
