@@ -1,4 +1,6 @@
 version: 2
+
+# Every label used below must exist in the repo; dependabot drops unknown ones silently.
 updates:
   - package-ecosystem: "uv"
     directory: "/"
@@ -7,7 +9,9 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "00 - Ready for Review"
+      - "skip-changelog"
+      - "skip-version-bump"
+      - "automerge"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -16,7 +20,9 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "00 - Ready for Review"
+      - "skip-changelog"
+      - "skip-version-bump"
+      - "automerge"
     groups:
       actions:
         patterns:
@@ -33,4 +39,6 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "00 - Ready for Review"
+      - "skip-changelog"
+      - "skip-version-bump"
+      - "automerge"
