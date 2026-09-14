@@ -1,0 +1,24 @@
+name: Automerge
+
+# Approves and merges dependabot's bumps once every expected check is green. The policy
+# lives in `.github/automerge.yaml`; this file is only the plumbing.
+
+# A cron, not `pull_request`: a dependabot-triggered run reads Dependabot secrets and never
+# the repo's Actions secrets, so the App key would arrive empty. Polling also survives the
+# dispatches GitHub drops, which a fire-once workflow would skip permanently.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  automerge:
+    uses: datarobot-oss/github-actions/.github/workflows/automerge.yaml@0.0.28
+    with:
+      # Public metadata, not a secret. `dr-auto-merge`.
+      app_id: '4912188'
+      mode: 'merge'
+    secrets:
+      app_private_key: ${{ secrets.DR_AUTO_MERGE_PRIVATE_KEY }}
+    permissions:
+      contents: read
