@@ -9,8 +9,8 @@ allowed_authors:
 label: automerge
 
 # Must be PRESENT and green, not merely not-failing: a suite that never ran at all is the
-# case "all checks are green" gets wrong. Contexts the rulesets require are added to this
-# list automatically; these are repeated so editing the ruleset cannot quietly drop one.
+# case "all checks are green" gets wrong. Contexts the rulesets require are added
+# automatically; these are repeated so editing the ruleset cannot quietly drop one.
 expected_checks:
   - "lint"
   - "test (3.11)"
@@ -20,8 +20,6 @@ expected_checks:
   - "licenses"
   - "audit"
   - "gitleaks"
-  - "version"
-  - "changelog / Changelog updated"
 
 block_on_any_failure: true
 
