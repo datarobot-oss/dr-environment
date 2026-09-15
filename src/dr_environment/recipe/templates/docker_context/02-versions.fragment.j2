@@ -105,6 +105,9 @@ RUN dr plugin install xp \
     && dr plugin install opencode \
     && dr plugin install assist
 
+# Pre-install datarobot skills for opencode
+RUN npx ai-agent-skills install datarobot-oss/datarobot-agent-skills --agent opencode
+
 # Pre-create the Agent Assist venv under the name dr-assist derives at runtime (the
 # wheel basename without .whl). Agent Assist builds this venv on first launch, which
 # fails in the offline image; baking it here lets it start. `uv venv` uses the system
