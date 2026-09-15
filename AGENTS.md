@@ -63,7 +63,7 @@ src/dr_environment/recipe/templates/docker_context/
 ├── kernel/requirements.txt   # Kernel-only deps (NOT recipe component deps)
 └── build-deps/, kernel/      # render.py:FRAGMENT_ASSET_DIRS, copied in as directories
 
-tests/                  # pytest unit tests (no Docker integration tests yet)
+tests/                  # pytest; builds a context from tests/fixtures/recipe, no docker build
 ```
 
 ## Build pipeline
@@ -76,7 +76,7 @@ flowchart TD
     D --> E[render base/user/versions/build-deps/kernel fragments]
     E --> F{per component}
     F -->|HOOK| G[task environment]
-    F -->|DEFAULT| H[copy_component copy manifests]
+    F -->|DEFAULT| H[layout_components copy manifests]
     G --> I[write_component_cache_fragments]
     H --> I
     I --> J[render_offline_fragment]

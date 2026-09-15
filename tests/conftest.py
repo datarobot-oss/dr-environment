@@ -12,8 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Shared fixtures for the test suite."""
-
 from __future__ import annotations
 
 import os
@@ -31,8 +29,7 @@ FIXTURE_RECIPE = Path(__file__).resolve().parent / "fixtures" / "recipe"
 def _locked_recipe(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Lock the fixture recipe once per session; tests copy from the result.
 
-    Generated rather than committed: `validate_all` runs each ecosystem's own check, which a
-    committed lockfile fails as soon as that tool changes its format.
+    Generated, not committed: a lockfile from another uv or npm fails its ecosystem's check.
     """
     for tool in ("uv", "npm"):
         if shutil.which(tool) is None:
@@ -70,8 +67,8 @@ def stub_task(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[[str]
         stub = bin_dir / "task"
         stub.write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
         stub.chmod(0o755)
-        # Prepended, not replaced: the stub has to win over a real go-task, while the body
-        # still needs the shell utilities on the inherited PATH.
+        # The stub dir is prepended so it wins over a real go-task while the body keeps the
+        # shell utilities on the inherited PATH.
         monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
 
     return install

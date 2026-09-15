@@ -20,7 +20,7 @@ import re
 import shutil
 from pathlib import Path
 
-from dr_environment.recipe.models import Component, Ecosystem
+from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem
 
 # Recipe convention: sibling `core/` is a symlinked local shared Python package.
 LOCAL_SHARED_PACKAGE = "core"
@@ -34,22 +34,20 @@ COPY_MAP: dict[Ecosystem, tuple[str, ...]] = {
 
 def strip_local_shared_python_package(pyproject_text: str) -> str:
     """Remove the symlinked local `core` package from a copied pyproject.toml."""
-    # Keyed on the package name alone: a component writes `path = "../core"`, and matching the
-    # path as well silently left the source entry in place for every real recipe.
     text = re.sub(
-        rf"^{LOCAL_SHARED_PACKAGE} = \{{[^\n]*\n",
+        rf'^{LOCAL_SHARED_PACKAGE} = \{{ path = "{LOCAL_SHARED_PACKAGE}"[^\n]*\n',
         "",
         pyproject_text,
         flags=re.MULTILINE,
     )
 
     def _clean_inline_deps(match: re.Match[str]) -> str:
-        # Match whole quoted strings rather than splitting on commas: a comma inside an
-        # extras marker, as in "datarobot[auth-authlib,core]>=3.9.1", is not a separator.
+        # Match whole quoted strings, single-quoted too, rather than splitting on commas,
+        # which would break an extras marker like "datarobot[auth-authlib,core]>=3.9.1".
         kept = [
             dep
-            for dep in re.findall(r'"[^"]*"', match.group(1))
-            if dep.strip('"') != LOCAL_SHARED_PACKAGE
+            for dep in re.findall(r'"[^"]*"|\'[^\']*\'', match.group(1))
+            if dep.strip("\"'") != LOCAL_SHARED_PACKAGE
         ]
         return f"dependencies = [{', '.join(kept)}]"
 
@@ -70,7 +68,7 @@ def strip_local_shared_python_package(pyproject_text: str) -> str:
             in_dependencies = True
         elif in_dependencies and stripped == "]":
             in_dependencies = False
-        elif in_dependencies and re.fullmatch(r'"core",?', stripped):
+        elif in_dependencies and re.fullmatch(r"[\"']core[\"'],?", stripped):
             continue
         out.append(line)
 
@@ -80,7 +78,7 @@ def strip_local_shared_python_package(pyproject_text: str) -> str:
 
 def copy_component(component: Component, docker_context: Path) -> Path:
     """Copy manifest files for a component into components/<name>/."""
-    dest = docker_context / "components" / component.name
+    dest = docker_context / "components" / component.dest_name
     dest.mkdir(parents=True, exist_ok=True)
 
     for info in component.manifests:
@@ -103,3 +101,12 @@ def copy_component(component: Component, docker_context: Path) -> Path:
                 shutil.copy2(src, dest_file)
 
     return dest
+
+
+def layout_components(components: list[Component], docker_context: Path) -> None:
+    for component in components:
+        if component.strategy != ComponentStrategy.DEFAULT:
+            continue
+        if not component.manifests:
+            continue
+        copy_component(component, docker_context)

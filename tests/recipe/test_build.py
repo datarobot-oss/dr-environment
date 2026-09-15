@@ -22,6 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+import yaml
 
 from dr_environment.recipe.build import build, create_tarball
 from dr_environment.recipe.validate import ValidationError
@@ -30,6 +31,8 @@ from dr_environment.recipe.validate import ValidationError
 # Unanchored, so a line carrying two mounts has both of its references checked.
 _STAGE_REF = re.compile(r"\bfrom=([A-Za-z0-9_.-]+)", re.I)
 _STAGE_DEF = re.compile(r"^FROM\s+(?:--\S+\s+)*\S+\s+AS\s+(\S+)", re.MULTILINE | re.I)
+# Flags and sources of one COPY. Every argument but the last is a source.
+_COPY = re.compile(r"^COPY\s+((?:--\S+\s+)*)(.+)$", re.MULTILINE)
 
 # Set in the offline stage's ENV block. UV_FROZEN and UV_FIND_LINKS are here because the
 # wheelhouse and the frozen sync are what make an air-gapped install resolve at all.
@@ -56,7 +59,6 @@ def context(recipe: Path, tmp_path: Path) -> Path:
 
 @pytest.fixture
 def dockerfile(context: Path) -> str:
-    """Read the assembled Dockerfile with comment lines dropped."""
     return _instructions((context / "Dockerfile").read_text(encoding="utf-8"))
 
 
@@ -69,10 +71,37 @@ def test_the_image_is_built_from_the_offline_stage(dockerfile: str) -> None:
     assert stages[-1] == "offline", f"the image is built from {stages[-1]}, not offline"
 
 
-def test_context_carries_the_custom_model_entrypoint(context: Path, dockerfile: str) -> None:
-    assert (context / "kernel" / "start_server_custom_model.sh").is_file()
+def test_context_carries_the_entrypoints_datarobot_connects_to(
+    context: Path, dockerfile: str
+) -> None:
     # DataRobot builds each deployed model FROM this image and runs this exact path.
     assert "COPY kernel/start_server_custom_model.sh /opt/code/start_server.sh" in dockerfile
+    # The port the notebook kernel gateway is reached on. A codespace connects to nothing else.
+    assert "EXPOSE 8888" in dockerfile
+
+
+def test_every_copy_source_exists_in_the_context(context: Path) -> None:
+    """A COPY naming a source the build never laid out fails only at `docker build` time,
+    which nothing in CI runs. Derived from the Dockerfile, so an asset added later is covered.
+    """
+    dockerfile = (context / "Dockerfile").read_text(encoding="utf-8")
+    sources = {
+        source
+        for flags, arguments in _COPY.findall(dockerfile)
+        if "--from=" not in flags
+        for source in arguments.split()[:-1]
+        if "$" not in source
+    }
+
+    assert sources, "no COPY sources found"
+    assert [source for source in sorted(sources) if not (context / source).exists()] == []
+
+
+def test_license_headers_never_reach_the_generated_dockerfile(context: Path) -> None:
+    """Fragment headers are Jinja comments, stripped at render time. A plain `#` header would
+    still satisfy license-eye while shipping 14 lines of boilerplate in every Dockerfile.
+    """
+    assert "Apache License" not in (context / "Dockerfile").read_text(encoding="utf-8")
 
 
 def test_context_offline_stage_is_offline_and_not_root(dockerfile: str) -> None:
@@ -90,7 +119,7 @@ def test_context_offline_stage_is_offline_and_not_root(dockerfile: str) -> None:
 
 
 def test_only_manifest_bearing_components_are_laid_out(context: Path) -> None:
-    # Keyed on the include name, not the directory basename: the cache stage COPYs this path.
+    # The path uses the include name, not the directory basename, because the cache stage COPYs it.
     assert (context / "components" / "agent_app" / "pyproject.toml").is_file()
     assert (context / "components" / "agent_app" / "uv.lock").is_file()
     assert (context / "components" / "frontend" / "package.json").is_file()
@@ -112,8 +141,8 @@ def test_component_cache_stages_chain_and_the_offline_stage_copies_from_the_last
         ("cache-agent_app", "cache-frontend"),
         ("cache-frontend", "cache-perms"),
     ]
-    # Scoped to the offline stage: a legal `--from=` in an earlier fragment is not this test's
-    # business, and scanning the whole file would blame the offline stage for it.
+    # The scan covers only the offline stage, since a legal `--from=` in an earlier fragment
+    # is not this test's business and would be blamed on the offline stage.
     refs = set(_STAGE_REF.findall(dockerfile.split("AS offline", 1)[1]))
     component_stages = [stage for _, stage in chain if stage != "cache-perms"]
     assert "cache-perms" in refs
@@ -143,9 +172,9 @@ def test_rebuild_replaces_the_target_rather_than_merging_into_it(
     assert not stale.exists(), "a stale fragment survived a rebuild and would be assembled in"
 
 
-# Parametrised rather than looped: a regression here deletes the target, so each case needs its
-# own recipe copy. `.` covers an unset shell variable too, since Path("") is Path(".").
-@pytest.mark.parametrize("target", [".", "..", "agent"], ids=["dot", "parent", "component"])
+# A regression here deletes the target, so each case gets its own recipe copy. `.` covers
+# the non-empty-dir branch and an unset shell variable, since Path("") is Path(".").
+@pytest.mark.parametrize("target", [".", "Taskfile.yml"], ids=["dot", "file"])
 def test_build_refuses_a_target_that_already_holds_something_else(
     recipe: Path, monkeypatch: pytest.MonkeyPatch, target: str
 ) -> None:
@@ -176,7 +205,7 @@ def test_build_refuses_a_component_whose_lockfile_is_missing(recipe: Path, tmp_p
         build(recipe, tmp_path / "ctx", tarball=False)
 
     message = str(error_info.value)
-    # Names the component, but points at the directory a contributor has to cd into.
+    # The error names the component but points at the directory a contributor has to cd into.
     assert "component 'agent_app' has pyproject.toml but uv.lock is missing" in message
     assert "cd agent && uv lock" in message, "the error has to say how to fix it"
     assert not (tmp_path / "ctx").exists(), "a rejected recipe must not leave a partial context"
@@ -194,11 +223,10 @@ def test_build_runs_a_component_environment_hook_and_assembles_its_fragment(
         "version: '3'\ntasks:\n  environment:\n    cmds:\n      - true\n", encoding="utf-8"
     )
     taskfile = recipe / "Taskfile.yml"
-    taskfile.write_text(
-        taskfile.read_text(encoding="utf-8")
-        + "  custom:\n    taskfile: ./custom/Taskfile.yml\n    dir: ./custom\n",
-        encoding="utf-8",
-    )
+    # Appended last, so the hook's fragment sorts after every component cache stage.
+    spec = yaml.safe_load(taskfile.read_text(encoding="utf-8"))
+    spec["includes"]["custom"] = {"taskfile": "./custom/Taskfile.yml", "dir": "./custom"}
+    taskfile.write_text(yaml.dump(spec, sort_keys=False), encoding="utf-8")
 
     stub_task('printf "RUN echo hooked\\n" >> "$DOCKERFILE_FRAGMENT"')
 

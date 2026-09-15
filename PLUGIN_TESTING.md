@@ -38,8 +38,6 @@ uv run dr-environment recipe --recipe-path .
 
 ## Build output
 
-Asserted by `tests/recipe/test_build.py`; check by hand only against a real recipe.
-
 ```bash
 test -f docker_context/Dockerfile
 test -f docker_context/kernel/requirements.txt
@@ -70,7 +68,7 @@ ERROR: component 'agent' has pyproject.toml but uv.lock is missing
 
 ## Air-gap env vars
 
-Asserted by `tests/recipe/test_build.py`. The final stage sets:
+The final stage sets:
 
 ```
 UV_CACHE_DIR=/opt/cache/uv
@@ -84,12 +82,9 @@ Verify `kernel/start_server_custom_model.sh` is copied to `/opt/code/start_serve
 
 ## Component hook
 
-Add to a component `Taskfile.yml`:
-
 The task receives five variables: `DOCKER_CONTEXT`, `COMPONENT_DIR`, `COMPONENT_NAME`,
 `DOCKERFILE_FRAGMENT` (pre-created, append to it) and `COMPONENT_DEST` (pre-created, copy into
-it). `tests/recipe/test_hooks.py` pins all five against a stubbed `task`; this checks the same
-contract against the real one.
+it). Add to a component `Taskfile.yml`:
 
 ```yaml
 tasks:
@@ -98,15 +93,13 @@ tasks:
       - cp pyproject.toml uv.lock "$COMPONENT_DEST/"
       - |
         cat >> "$DOCKERFILE_FRAGMENT" <<'EOF'
-        RUN echo custom step
+        FROM cache-example AS cache-custom
+        ENV UV_CACHE_DIR=/opt/cache/uv
+        RUN echo custom stage
         EOF
 ```
 
 Run `dr-environment recipe` and verify the fragment appears in `dockerfile.d/`.
-
-Append bare instructions, as above: they land in the preceding cache stage, which is part of the
-chain the offline stage copies from. A fragment that opens its own `FROM ... AS ...` stage is
-assembled but never referenced, so anything it warms is discarded.
 
 ## DataRobot CLI integration
 

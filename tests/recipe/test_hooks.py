@@ -12,8 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `task environment` hook contract: PLUGIN_TESTING.md documents these five variables,
-and a third-party Taskfile breaks silently if one is renamed.
+"""The `task environment` hook contract: five documented variables, and a third-party
+Taskfile breaks silently if one is renamed.
 """
 
 from __future__ import annotations
@@ -53,8 +53,8 @@ def _component(tmp_path: Path) -> Component:
 def test_hook_runs_with_the_documented_contract(
     tmp_path: Path, stub_task: Callable[[str], None]
 ) -> None:
-    # One `echo` per variable, in CONTRACT order: a renamed variable reads back empty rather
-    # than shifting every value after it.
+    # One `echo` per variable in CONTRACT order, so a renamed variable reads back empty
+    # rather than shifting every value after it.
     record = tmp_path / "record"
     reads = "; ".join(f'echo "${name}"' for name in CONTRACT)
     stub_task(
@@ -77,8 +77,8 @@ def test_hook_runs_with_the_documented_contract(
         "DOCKERFILE_FRAGMENT": str(fragment.resolve()),
         "COMPONENT_DEST": str((context / "components" / "custom").resolve()),
     }
-    # The stub writes into both paths, so the content proves they existed before it ran;
-    # asserting they exist afterwards would pass with either mkdir below the subprocess.
+    # The stub writes into both paths, so the content proves they existed before it ran.
+    # Asserting bare existence afterwards would pass even if the code created them later.
     assert fragment.read_text(encoding="utf-8") == "RUN echo hooked\n"
     assert (context / "components" / "custom" / "copied").is_file()
 

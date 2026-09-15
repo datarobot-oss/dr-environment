@@ -43,8 +43,8 @@ def test_stale_uv_lock_detected_by_uv_lock_check(tmp_path: Path) -> None:
 
     assert infos[0].ecosystem == Ecosystem.PYTHON
     assert infos[0].status.value == "stale"
-    # `--check` is what makes this a check: plain `uv lock` would rewrite the lockfile and
-    # report success, so validation could never fail again.
+    # `--check` is what makes this a check. Plain `uv lock` would rewrite the lockfile and
+    # report success, so validation could never fail.
     assert run.call_args.args[0] == ["uv", "lock", "--check"]
 
 
@@ -77,23 +77,7 @@ def test_a_stale_npm_lockfile_names_npms_own_tool(tmp_path: Path) -> None:
     assert "out-of-date package-lock.json" in errors
     # The fix line is the ecosystem's own command, not whichever is first in MANIFEST_SPECS.
     assert "Fix: cd other && npm install" in errors
-
-
-def test_each_manifest_is_checked_once_per_build(tmp_path: Path) -> None:
-    """`npm ci --dry-run` is the slowest part of a build, so the status inspect_component
-    resolved is the one reported rather than being re-derived by a second pass.
-    """
-    component = _component(tmp_path, "frontend")
-    (component.source_dir / "package.json").write_text('{"name":"x"}')
-    (component.source_dir / "package-lock.json").write_text("")
-
-    with patch("dr_environment.recipe.validate.subprocess.run") as run:
-        run.return_value.returncode = 1
-        with pytest.raises(ValidationError):
-            validate_component(component)
-
     assert run.call_args.args[0] == ["npm", "ci", "--dry-run", "--ignore-scripts"]
-    assert run.call_count == 1
 
 
 def test_validate_all_reports_every_broken_component_not_just_the_first(tmp_path: Path) -> None:

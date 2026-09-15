@@ -77,11 +77,15 @@ def write_component_cache_fragments(
 ) -> str | None:
     """Write all default component cache fragments; return final cache stage name."""
     previous = PREVIOUS_STAGE
+    wrote = False
     for component in components:
+        if not component.manifests:
+            continue
+        wrote = True
         previous = write_component_cache_fragment(
             component, docker_context, previous_stage=previous
         )
-    return previous if components else None
+    return previous if wrote else None
 
 
 def _copy_component_tree(component_name: str) -> str:

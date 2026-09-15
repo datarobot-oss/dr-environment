@@ -41,27 +41,6 @@ def _python_component(name: str, manifest_dir: Path, pyproject: str) -> Componen
     )
 
 
-def test_strip_local_shared_python_package() -> None:
-    pyproject = """[project]
-dependencies = [
-    "ag-ui-protocol>=0.1.9",
-    "core",
-    "datarobot[auth-authlib,core]>=3.9.1",
-]
-
-[tool.uv.sources]
-core = { path = "../core", editable = true }
-other = { path = "vendor", editable = true }
-"""
-    stripped = strip_local_shared_python_package(pyproject)
-    assert '\n    "core",\n' not in stripped
-    assert "datarobot[auth-authlib,core]" in stripped
-    # `../core` is what a component writes; matching the path as well as the key left this
-    # entry in place for every real recipe, so the source has to be keyed on the name alone.
-    assert "core = { path" not in stripped
-    assert 'other = { path = "vendor", editable = true }' in stripped
-
-
 def test_strip_local_shared_python_package_keeps_extras_in_an_inline_list() -> None:
     """The comma inside `datarobot[auth-authlib,core]` is not a dependency separator."""
     stripped = strip_local_shared_python_package(
@@ -71,19 +50,35 @@ def test_strip_local_shared_python_package_keeps_extras_in_an_inline_list() -> N
     assert stripped == '[project]\ndependencies = ["datarobot[auth-authlib,core]>=3.9.1"]\n'
 
 
-def test_copy_component_strips_core_from_pyproject(tmp_path: Path) -> None:
-    component = _python_component(
-        "fastapi_server",
-        tmp_path / "fastapi_server",
-        '[project]\ndependencies = ["core"]\n\n'
-        '[tool.uv.sources]\ncore = { path = "../core", editable = true }\n',
-    )
+def test_strip_local_shared_python_package_reads_single_quoted_lists() -> None:
+    """TOML allows single quotes; entries the old pattern missed emptied the whole list."""
+    stripped = strip_local_shared_python_package("[project]\ndependencies = ['requests', 'core']\n")
+
+    assert stripped == "[project]\ndependencies = ['requests']\n"
+
+
+def test_copy_component_strips_core_from_the_copied_pyproject(tmp_path: Path) -> None:
+    """A multi-line `dependencies` list, which the inline-list regex above cannot reach."""
+    pyproject = """[project]
+dependencies = [
+    "ag-ui-protocol>=0.1.9",
+    "core",
+    "datarobot[auth-authlib,core]>=3.9.1",
+]
+
+[tool.uv.sources]
+core = { path = "core", editable = true }
+other = { path = "vendor", editable = true }
+"""
+    component = _python_component("fastapi_server", tmp_path / "fastapi_server", pyproject)
 
     copy_component(component, tmp_path / "ctx")
 
     copied = (tmp_path / "ctx/components/fastapi_server/pyproject.toml").read_text()
+    assert '\n    "core",\n' not in copied
+    assert "datarobot[auth-authlib,core]" in copied
     assert "core = { path" not in copied
-    assert '"core"' not in copied
+    assert 'other = { path = "vendor", editable = true }' in copied
 
 
 def test_copy_component_keeps_cores_own_source_entry(tmp_path: Path) -> None:

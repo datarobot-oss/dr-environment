@@ -1,5 +1,5 @@
 ---
-# Deliberately off the built-in defaults, so a fragment rendered from these values proves
+# These versions differ from the built-in defaults on purpose, so a rendered fragment proves
 # the recipe's own file was read rather than the fallbacks.
 uv:
   name: uv Python package manager

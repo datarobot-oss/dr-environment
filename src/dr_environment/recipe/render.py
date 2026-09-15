@@ -43,6 +43,10 @@ def copy_fragment_assets(docker_context: Path) -> None:
         shutil.copytree(src, docker_context / name, ignore=shutil.ignore_patterns("__pycache__"))
 
 
+# Backward-compatible alias for tests and callers.
+copy_static_template = copy_fragment_assets
+
+
 def render_base_fragment(docker_context: Path) -> None:
     env = _jinja_env()
     template = env.get_template("00-base.fragment.j2")

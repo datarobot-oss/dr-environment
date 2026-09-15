@@ -12,10 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The entrypoint DataRobot runs for every deployed model.
+"""The entrypoint DataRobot runs for every deployed model, COPY'd to /opt/code/start_server.sh.
 
-`start_server_custom_model.sh` is COPY'd to /opt/code/start_server.sh and shipped into the
-image. CI lints its syntax with shellcheck; this runs it, with `uv`, `nat` and `python` stubbed.
+CI shellchecks its syntax; this runs it, with `uv`, `nat` and `python` stubbed.
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ exit 0
 echo "nat $*" >> "$RECORD"
 exit 0
 """,
-    # `-c` is the worker-count probe; anything else is the MCP dispatch.
+    # `-c` is the worker-count probe. Anything else is the MCP dispatch.
     "python": """#!/bin/sh
 if [ "$1" = "-c" ]; then echo 3; else echo "python $*" >> "$RECORD"; fi
 exit 0
@@ -94,8 +93,8 @@ def _run(
     if url_prefix:
         env["URL_PREFIX"] = url_prefix
 
-    # By path, not `sh <script>`: the image chmods this file and execs it, so the shebang
-    # is what selects the interpreter in production.
+    # The script runs by path rather than `sh <script>`, because the image chmods and execs
+    # it, so the shebang selects the interpreter in production.
     result = subprocess.run([str(script)], env=env, capture_output=True, text=True, check=False)
     assert result.returncode == expect_exit, result.stderr
     return result.stdout, record.read_text(encoding="utf-8") if record.is_file() else ""
@@ -121,7 +120,7 @@ def test_a_workflow_yaml_starts_the_agent_under_gunicorn(tmp_path: Path) -> None
 
     assert "nat dragent serve" in recorded
     assert "--use_gunicorn true" in recorded
-    # DataRobot health-checks this address; binding elsewhere fails every deployment.
+    # DataRobot health-checks this address, and binding elsewhere fails every deployment.
     assert "--host 0.0.0.0 --port 8080" in recorded
     # The stub answers 3 where the script's own default is 1, so a hardcoded count fails.
     assert "--workers 3" in recorded
