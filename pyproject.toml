@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dr-environment"
-version = "0.1.4"
+version = "0.1.5"
 description = "Build DataRobot execution environment Docker contexts with offline dependency caches"
 readme = "README.md"
 requires-python = ">=3.11, <3.14"
@@ -33,6 +33,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
+    "pytest-cov>=5.0",
     "ruff>=0.14.0",
     "mypy>=1.14",
     "types-PyYAML",
@@ -51,6 +52,16 @@ packages = ["src/dr_environment"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Without uv or npm on PATH the fixture recipe skips every end-to-end test, and -ra prints
+# the skip reason instead of a bare `s`.
+addopts = ["-ra"]
+
+[tool.coverage.run]
+source = ["dr_environment"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
 
 [tool.ruff]
 line-length = 100

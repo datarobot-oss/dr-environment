@@ -1,0 +1,8 @@
+---
+# No `environment` task, so this component takes the DEFAULT manifest-copy strategy.
+version: '3'
+
+tasks:
+  install:
+    cmds:
+      - uv sync

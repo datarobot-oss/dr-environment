@@ -1,0 +1,8 @@
+---
+# No manifest of any ecosystem, so this component is discovered and then skipped.
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - echo docs

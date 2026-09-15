@@ -63,7 +63,7 @@ src/dr_environment/recipe/templates/docker_context/
 ├── kernel/requirements.txt   # Kernel-only deps (NOT recipe component deps)
 └── build-deps/, kernel/      # render.py:FRAGMENT_ASSET_DIRS, copied in as directories
 
-tests/                  # pytest unit tests (no Docker integration tests yet)
+tests/                  # pytest; builds a context from tests/fixtures/recipe, no docker build
 ```
 
 ## Build pipeline
@@ -197,7 +197,9 @@ ls docker_context/dockerfile.d/
 grep -E "uv sync|UV_OFFLINE" docker_context/Dockerfile
 ```
 
-There are no Docker build integration tests in CI yet. Manually verify with `docker build --platform linux/amd64`.
+CI generates a context from `tests/fixtures/recipe`, lints it with hadolint and resolves its
+stage graph with `docker buildx build --check`. A real `docker build` is still manual:
+`docker build --platform linux/amd64`.
 
 ## Common pitfalls
 

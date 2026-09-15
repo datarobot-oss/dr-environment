@@ -1,0 +1,24 @@
+---
+# Minimal recipe for the end-to-end tests: a Python and an npm component, one with no
+# manifest, and an internal include. Every component is dependency-free, so locking stays
+# offline. A Go component would need the toolchain, so unit tests cover the Go fragment.
+version: '3'
+
+includes:
+  # Internal includes are never components. This one points at a real manifest directory, so
+  # the `internal` filter is what excludes it rather than a path that does not resolve.
+  common:
+    taskfile: ./agent/Taskfile.yml
+    dir: ./agent
+    internal: true
+  # The include key differs from the `dir:` basename on purpose, because layout and the cache
+  # stage COPY are keyed on the include key and matching names could hide a mix-up.
+  agent_app:
+    taskfile: ./agent/Taskfile.yml
+    dir: ./agent
+  docs:
+    taskfile: ./docs/Taskfile.yaml
+    dir: ./docs
+  frontend:
+    taskfile: ./frontend/Taskfile.yaml
+    dir: ./frontend

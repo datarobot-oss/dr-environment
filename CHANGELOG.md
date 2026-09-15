@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.5
+- Test the context build end to end in tests and CI; fix the bugs found along the way.
+
 ## 0.1.4
 - Bump the default `datarobot` version from `3.18` to `3.19.0`, the first release with the `dr-dev` shim that lets `dr` discover drdev as the `dev` plugin.
 
