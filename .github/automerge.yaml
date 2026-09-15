@@ -1,0 +1,43 @@
+# Automerge policy. Its presence is what enrols the repo; delete it and automerge stops.
+# Always read from the default branch, so a pull request cannot grant itself a merge.
+
+version: 1
+
+allowed_authors:
+  - dependabot[bot]
+
+label: automerge
+
+# Must be PRESENT and green, not merely not-failing: a suite that never ran at all is the
+# case "all checks are green" gets wrong. Contexts the rulesets require are added
+# automatically; these are repeated so editing the ruleset cannot quietly drop one.
+expected_checks:
+  - "lint"
+  - "test (3.11)"
+  - "test (3.12)"
+  - "test (3.13)"
+  - "build"
+  - "licenses"
+  - "audit"
+  - "gitleaks"
+
+block_on_any_failure: true
+
+settle_seconds: 300
+
+# A grouped actions bump touches one file per workflow; six plus a lock file leaves room.
+max_changed_files: 25
+
+allowed_paths:
+  - "uv.lock"
+  - "pyproject.toml"
+  - "CHANGELOG.md"
+  - "src/dr_environment/recipe/templates/docker_context/kernel/requirements.txt"
+  - "src/dr_environment/recipe/templates/docker_context/build-deps/build-requirements.txt"
+  - ".github/workflows/**"
+
+merge_method: squash
+
+# Applied on a terminal refusal, in place of `automerge`, so the pull request rejoins the
+# review queue instead of sitting labelled with nobody looking at it.
+escalate_label: "00 - Ready for Review"
