@@ -1,1 +1,3 @@
-* @datarobot-oss/buzok @datarobot-oss/mcp
+* @datarobot-oss/buzok
+# Custom-model dispatch: the only MCP-server-specific path in the image.
+/src/dr_environment/recipe/templates/docker_context/kernel/start_server_custom_model.sh @datarobot-oss/buzok @datarobot-oss/mcp
