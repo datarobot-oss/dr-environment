@@ -59,7 +59,6 @@ addopts = ["-ra"]
 [tool.coverage.run]
 source = ["dr_environment"]
 branch = true
-omit = ["*/templates/*"]
 
 [tool.coverage.report]
 fail_under = 90
