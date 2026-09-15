@@ -49,7 +49,6 @@ _DEFAULTS = {
     "pulumi": "3.163.0",
     "opencode": "1.17.11",
     "copier": "9.17.0",
-    # 3.19.0 adds the `dr-dev` shim; without it `dr` can't discover drdev as the `dev` plugin.
     "datarobot": "3.19.0",
     "pulumi_datarobot": "0.10.43",
     "pulumi_command": "1.2.1",
