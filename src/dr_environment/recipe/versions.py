@@ -54,6 +54,21 @@ _DEFAULTS = {
     "pulumi_command": "1.2.1",
 }
 
+# An exact Wolfi apk suffix, not a floor like the tools above, hence its own allowlist.
+SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12", "3.13")
+_DEFAULT_PYTHON_VERSION = "3.13"
+
+
+def python_version(versions: dict) -> str:
+    """Base-image Python version from versions.yaml's ``python.version``, default 3.13."""
+    raw = str(versions.get("python", {}).get("version", _DEFAULT_PYTHON_VERSION))
+    if raw not in SUPPORTED_PYTHON_VERSIONS:
+        raise ValueError(
+            f"unsupported python version in versions.yaml: {raw!r} "
+            f"(supported: {', '.join(SUPPORTED_PYTHON_VERSIONS)})"
+        )
+    return raw
+
 
 def _minimum_version(versions: dict, tool: str) -> str:
     raw = str(versions.get(tool, {}).get("minimum-version", _DEFAULTS[tool]))
