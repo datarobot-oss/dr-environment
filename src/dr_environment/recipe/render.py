@@ -22,7 +22,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from dr_environment.recipe.cache.stages import CACHE_COPY_PATHS
-from dr_environment.recipe.versions import parse_tool_versions
+from dr_environment.recipe.versions import parse_tool_versions, python_version
 
 # Asset directories copied into docker_context; names match Dockerfile fragment stages.
 FRAGMENT_ASSET_DIRS = ("build-deps", "kernel")
@@ -47,19 +47,19 @@ def copy_fragment_assets(docker_context: Path) -> None:
 copy_static_template = copy_fragment_assets
 
 
-def render_base_fragment(docker_context: Path) -> None:
+def render_base_fragment(docker_context: Path, versions: dict) -> None:
     env = _jinja_env()
     template = env.get_template("00-base.fragment.j2")
     content = template.render(
         uv_cache_dir="/opt/cache/uv",
-        # Python 3.11, not 3.12, to match the stock "[DataRobot] Python 3.11 GenAI Agents"
-        # environment this image stands in for. On 3.12 deployed NAT/DRAgent agents
-        # crash-loop on boot: uvicorn aliases its `asyncio_run` to `asyncio.run`, which NAT
-        # patches via nest_asyncio and cannot patch a uvloop event loop ("Can't patch loop
-        # of type uvloop.Loop"). On 3.11 uvicorn uses its own asyncio.Runner-based path that
-        # bypasses that patch. Every recipe component allows >=3.11 and their uv.lock files
-        # are universal, so 3.11 resolves without a relock.
-        python_version="3.11",
+        # Defaults to 3.13; override with `python: {version: "3.11"}` in versions.yaml.
+        # 3.11 used to be the only safe choice: deployed NAT/DRAgent agents crash-looped on
+        # 3.12+ because uvicorn aliases its `asyncio_run` to `asyncio.run`, which NAT patches
+        # via nest_asyncio2, and that patch can't touch a uvloop event loop ("Can't patch
+        # loop of type uvloop.Loop"). Fixed upstream in datarobot-genai 0.29.45 (forces the
+        # gunicorn path onto the standard asyncio loop instead of uvloop), so every recipe
+        # component pinning >=0.29.45 is safe on 3.12/3.13 too.
+        python_version=python_version(versions),
         target_platform="linux/amd64",
     )
     dockerfile_d = docker_context / "dockerfile.d"

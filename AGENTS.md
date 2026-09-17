@@ -155,6 +155,9 @@ Recipe `.datarobot/cli/versions.yaml` drives:
 
 - `dr` CLI version (`02-versions.fragment.j2` → `CLI_VERSION`)
 - `pulumi` version (the `versions` stage installs via `get.pulumi.com`)
+- `python` version (`00-base.fragment.j2` → base-image apk packages), via `python.version`,
+  not `minimum-version` like the others — it's an exact Wolfi apk suffix, not a floor.
+  Defaults to `3.13`; `SUPPORTED_PYTHON_VERSIONS` in `versions.py` is the allowlist.
 
 `versions.py` falls back to `_DEFAULTS` for anything a recipe does not list. The `versions` stage installs `uv` and `task` from their upstream install scripts and `node` and the `dr` CLI from release tarballs; of these tools only `git` comes from a Wolfi apk (`02-versions`; the `00-base` toolchain layer already pulls it in).
 

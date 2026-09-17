@@ -80,7 +80,7 @@ def build(
 
     versions = load_versions(versions_file)
     copy_fragment_assets(docker_context)
-    render_base_fragment(docker_context)
+    render_base_fragment(docker_context, versions)
     render_user_fragment(docker_context)
     render_versions_fragment(docker_context, versions)
     render_build_deps_fragment(docker_context)
