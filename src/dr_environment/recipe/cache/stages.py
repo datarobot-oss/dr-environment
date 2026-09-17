@@ -123,7 +123,7 @@ def _python_cache_lines(component_name: str) -> list[str]:
         # over packages that build fine, not just the genuinely risky ones.
         f"RUN UV_PROJECT_ENVIRONMENT={warm_venv} \\",
         f"    uv sync {sync_flags} \\",
-        "        --python ${VENV_PATH}/bin/python \\",
+        '        --python "${VENV_PATH}/bin/python" \\',
         f"    && uv pip install --no-cache --python {warm_venv}/bin/python pip \\",
         "    && uv export --frozen --no-dev --no-emit-local --no-emit-project \\",
         f"        -o {wheelhouse_req} \\",

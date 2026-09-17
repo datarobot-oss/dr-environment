@@ -39,6 +39,10 @@ def run_environment_hook(component: Component, docker_context: Path) -> None:
     if not fragment_path.exists():
         fragment_path.write_text("", encoding="utf-8")
 
+    # A hook copies its manifests into COMPONENT_DEST, so the directory has to exist first.
+    component_dest = docker_context / "components" / component.name
+    component_dest.mkdir(parents=True, exist_ok=True)
+
     env = os.environ.copy()
     env.update(
         {
@@ -46,12 +50,18 @@ def run_environment_hook(component: Component, docker_context: Path) -> None:
             "COMPONENT_DIR": str(component.source_dir.resolve()),
             "COMPONENT_NAME": component.name,
             "DOCKERFILE_FRAGMENT": str(fragment_path.resolve()),
-            "COMPONENT_DEST": str((docker_context / "components" / component.name).resolve()),
+            "COMPONENT_DEST": str(component_dest.resolve()),
         }
     )
 
-    subprocess.run(
-        ["task", "-d", str(component.source_dir), "environment"],
-        env=env,
-        check=True,
-    )
+    try:
+        subprocess.run(
+            ["task", "-d", str(component.source_dir), "environment"],
+            env=env,
+            check=True,
+        )
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            f"ERROR: 'task' is required to run the '{component.name}' environment hook but is "
+            "not installed\n  Install: https://taskfile.dev/installation/"
+        ) from exc

@@ -17,6 +17,7 @@ expected_checks:
   - "test (3.12)"
   - "test (3.13)"
   - "build"
+  - "context"
   - "licenses"
   - "audit"
   - "gitleaks"

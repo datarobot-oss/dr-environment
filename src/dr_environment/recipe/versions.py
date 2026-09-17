@@ -49,7 +49,7 @@ _DEFAULTS = {
     "pulumi": "3.163.0",
     "opencode": "1.17.11",
     "copier": "9.17.0",
-    "datarobot": "3.18",
+    "datarobot": "3.19.0",
     "pulumi_datarobot": "0.10.43",
     "pulumi_command": "1.2.1",
 }

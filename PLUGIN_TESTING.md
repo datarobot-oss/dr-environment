@@ -2,6 +2,15 @@
 
 > Contributor documentation: this describes verifying changes **to** this repo.
 
+Most of what follows is now automated. `uv run pytest` builds a context from
+`tests/fixtures/recipe` and asserts the layout, the stage order, the offline environment and
+the hook contract; CI additionally lints the generated Dockerfile with hadolint and resolves
+its stage graph with `docker buildx build --check`. Run the steps below when changing the
+templates, or to check something the suite does not reach: a real `docker build`, an image
+that runs with no network, and a recipe with npm or Go components. The fixture recipe is
+locked with `uv` and `npm` once per session; without either on PATH those tests skip, naming
+the missing tool.
+
 ## Installation
 
 ```bash
@@ -37,6 +46,17 @@ ls docker_context/components/
 ls docker_context/dockerfile.d/
 ```
 
+## Image build
+
+Not covered by CI. The base image is `wolfi-base:latest` and the build fetches from seven
+external hosts, so it is neither reproducible nor hermetic.
+
+```bash
+cd docker_context
+docker build --platform linux/amd64 -t exec-env .
+docker run --rm --network none exec-env sh -c 'uv sync --offline && uvx copier --version'
+```
+
 ## Lockfile validation
 
 Remove `uv.lock` from a component and run `recipe` — expect:
@@ -48,7 +68,7 @@ ERROR: component 'agent' has pyproject.toml but uv.lock is missing
 
 ## Air-gap env vars
 
-Inspect assembled Dockerfile final stage for cache and offline env vars:
+The final stage sets:
 
 ```
 UV_CACHE_DIR=/opt/cache/uv
@@ -62,7 +82,9 @@ Verify `kernel/start_server_custom_model.sh` is copied to `/opt/code/start_serve
 
 ## Component hook
 
-Add to a component `Taskfile.yml`:
+The task receives five variables: `DOCKER_CONTEXT`, `COMPONENT_DIR`, `COMPONENT_NAME`,
+`DOCKERFILE_FRAGMENT` (pre-created, append to it) and `COMPONENT_DEST` (pre-created, copy into
+it). Add to a component `Taskfile.yml`:
 
 ```yaml
 tasks:

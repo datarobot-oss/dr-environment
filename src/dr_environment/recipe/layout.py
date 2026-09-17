@@ -42,11 +42,14 @@ def strip_local_shared_python_package(pyproject_text: str) -> str:
     )
 
     def _clean_inline_deps(match: re.Match[str]) -> str:
-        inner = match.group(1)
-        parts = [part.strip().strip('"') for part in inner.split(",") if part.strip()]
-        kept = [part for part in parts if part != LOCAL_SHARED_PACKAGE]
-        quoted = ", ".join(f'"{part}"' for part in kept)
-        return f"dependencies = [{quoted}]"
+        # Match whole quoted strings, single-quoted too, rather than splitting on commas,
+        # which would break an extras marker like "datarobot[auth-authlib,core]>=3.9.1".
+        kept = [
+            dep
+            for dep in re.findall(r'"[^"]*"|\'[^\']*\'', match.group(1))
+            if dep.strip("\"'") != LOCAL_SHARED_PACKAGE
+        ]
+        return f"dependencies = [{', '.join(kept)}]"
 
     text = re.sub(
         r"^dependencies = \[(.*?)\]\s*$",
@@ -65,7 +68,7 @@ def strip_local_shared_python_package(pyproject_text: str) -> str:
             in_dependencies = True
         elif in_dependencies and stripped == "]":
             in_dependencies = False
-        elif in_dependencies and re.fullmatch(r'"core",?', stripped):
+        elif in_dependencies and re.fullmatch(r"[\"']core[\"'],?", stripped):
             continue
         out.append(line)
 

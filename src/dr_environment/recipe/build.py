@@ -54,6 +54,17 @@ def build(
 ) -> Path:
     recipe_path = recipe_path.resolve()
     docker_context = target.resolve() if target.is_absolute() else (Path.cwd() / target).resolve()
+    # The target is emptied before the build writes into it, so it may only be an empty
+    # directory or a previously generated context: `--target .` would delete the recipe itself.
+    if (
+        docker_context.exists()
+        and (not docker_context.is_dir() or any(docker_context.iterdir()))
+        and not (docker_context / "dockerfile.d").is_dir()
+    ):
+        raise ValueError(
+            f"refusing to build into {docker_context}: it already exists and was not generated "
+            "by this tool"
+        )
     versions_file = recipe_path / ".datarobot/cli/versions.yaml"
 
     components = discover_components(recipe_path)
@@ -63,7 +74,9 @@ def build(
 
     if docker_context.exists():
         shutil.rmtree(docker_context)
-    docker_context.mkdir(parents=True)
+    # The marker the guard above looks for, written before any other output so a build
+    # interrupted mid-write leaves a context the next run replaces rather than refuses.
+    (docker_context / "dockerfile.d").mkdir(parents=True)
 
     versions = load_versions(versions_file)
     copy_fragment_assets(docker_context)
