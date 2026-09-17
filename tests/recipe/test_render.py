@@ -147,9 +147,6 @@ def test_render_offline_fragment_without_cache_stages(tmp_path: Path) -> None:
 def test_render_base_fragment_defaults_to_python_3_13_and_pins_the_build_platform(
     tmp_path: Path,
 ) -> None:
-    """Both pins shipped as outages: pre-0.29.45 datarobot-genai crash-loops on uvloop
-    (3.13 is safe again as of that fix), arm64 on exec format.
-    """
     docker_context = tmp_path / "ctx"
 
     render_base_fragment(docker_context, {})
@@ -161,7 +158,6 @@ def test_render_base_fragment_defaults_to_python_3_13_and_pins_the_build_platfor
 
 
 def test_render_base_fragment_honors_configured_python_version(tmp_path: Path) -> None:
-    """A recipe pinned to an older datarobot-genai can opt back into 3.11."""
     docker_context = tmp_path / "ctx"
 
     render_base_fragment(docker_context, {"python": {"version": "3.11"}})

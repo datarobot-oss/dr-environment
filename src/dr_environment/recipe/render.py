@@ -52,13 +52,8 @@ def render_base_fragment(docker_context: Path, versions: dict) -> None:
     template = env.get_template("00-base.fragment.j2")
     content = template.render(
         uv_cache_dir="/opt/cache/uv",
-        # Defaults to 3.13; override with `python: {version: "3.11"}` in versions.yaml.
-        # 3.11 used to be the only safe choice: deployed NAT/DRAgent agents crash-looped on
-        # 3.12+ because uvicorn aliases its `asyncio_run` to `asyncio.run`, which NAT patches
-        # via nest_asyncio2, and that patch can't touch a uvloop event loop ("Can't patch
-        # loop of type uvloop.Loop"). Fixed upstream in datarobot-genai 0.29.45 (forces the
-        # gunicorn path onto the standard asyncio loop instead of uvloop), so every recipe
-        # component pinning >=0.29.45 is safe on 3.12/3.13 too.
+        # Defaults to 3.13; override with `python: {version: "3.11"}` in versions.yaml if
+        # pinned to a datarobot-genai older than 0.29.45 (pre-fix uvloop crash-loop).
         python_version=python_version(versions),
         target_platform="linux/amd64",
     )

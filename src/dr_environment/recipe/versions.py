@@ -54,8 +54,7 @@ _DEFAULTS = {
     "pulumi_command": "1.2.1",
 }
 
-# Base-image Python: an exact Wolfi apk package suffix (`python-3.13`, ...), not a floor
-# like the other tools above, so it gets its own small allowlist instead of _VERSION_RE.
+# An exact Wolfi apk suffix, not a floor like the tools above, hence its own allowlist.
 SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12", "3.13")
 _DEFAULT_PYTHON_VERSION = "3.13"
 
