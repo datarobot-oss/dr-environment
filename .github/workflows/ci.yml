@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [ main ]
+  # Weekly, so a recipe or upstream change that breaks the image build surfaces without a merge.
+  schedule:
+    - cron: '0 6 * * 1'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -269,9 +272,9 @@ jobs:
 
   # The jobs above never build a layer, so a Dockerfile that only fails inside a RUN step
   # (a tool pin that does not install, a wheel with no matching Python) passes CI. This
-  # builds the real image from the public agent recipe's main after every merge to main.
+  # builds the real image from the public agent recipe's main after every merge to main and weekly.
   image:
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
