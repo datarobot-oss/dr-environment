@@ -96,8 +96,6 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     # A floor, not a pin.
     assert f'uv tool install "copier>={_DEFAULTS["copier"]}"' in content
     assert "copier==" not in content
-    # Agent Assist ships cp311 wheels only.
-    assert 'uv venv --python 3.11 "$venv_dir"' in content
     assert f"datarobot[core]>={_DEFAULTS['datarobot']}" in content
     assert f"PULUMI_DATAROBOT_VERSION=v{_DEFAULTS['pulumi_datarobot']}" in content
     assert f"PULUMI_COMMAND_VERSION=v{_DEFAULTS['pulumi_command']}" in content

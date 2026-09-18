@@ -6,7 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## 0.1.8
 - Install copier as `>=` the recipe's minimum instead of pinning it; the pin baked a release that does not import.
-- Create the Agent Assist venv with `--python 3.11`; the plugin ships cp311 wheels only.
 - Default the base Python back to `3.11`: `datarobot-moderations` requires `<3.13`.
 
 ## 0.1.7
