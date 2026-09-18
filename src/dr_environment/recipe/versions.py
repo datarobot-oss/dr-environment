@@ -56,11 +56,11 @@ _DEFAULTS = {
 
 # An exact Wolfi apk suffix, not a floor like the tools above, hence its own allowlist.
 SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12", "3.13")
-_DEFAULT_PYTHON_VERSION = "3.13"
+_DEFAULT_PYTHON_VERSION = "3.11"
 
 
 def python_version(versions: dict) -> str:
-    """Base-image Python version from versions.yaml's ``python.version``, default 3.13."""
+    """Base-image Python version from versions.yaml's ``python.version``, default 3.11."""
     raw = str(versions.get("python", {}).get("version", _DEFAULT_PYTHON_VERSION))
     if raw not in SUPPORTED_PYTHON_VERSIONS:
         raise ValueError(

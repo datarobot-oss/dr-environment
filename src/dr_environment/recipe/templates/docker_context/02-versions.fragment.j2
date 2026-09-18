@@ -57,8 +57,9 @@ ENV HOME=/home/notebooks \
 # versions.yaml — uv ({{ uv_version }})
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_VERSION="{{ uv_version }}" sh
 
-# copier ({{ copier_version }}; default when not listed in recipe)
-RUN uv tool install "copier=={{ copier_version }}"
+# copier (>= {{ copier_version }}; default when not listed in recipe). versions.yaml states a
+# floor, so install the newest release above it; an exact pin can name a broken release.
+RUN uv tool install "copier>={{ copier_version }}"
 
 # Warm the `uvx copier` ephemeral environment so `dr start` (which runs bare
 # `uvx copier recopy`) can resolve copier and its whole dependency tree from the
@@ -78,7 +79,7 @@ RUN uvx copier --version
 RUN venv=/tmp/copier-wheelhouse-warm \
     && uv venv "$venv" \
     && uv pip install --python "$venv/bin/python" pip \
-    && "$venv/bin/python" -m pip download --only-binary=:all: "copier=={{ copier_version }}" --dest /opt/wheelhouse \
+    && "$venv/bin/python" -m pip download --only-binary=:all: "copier>={{ copier_version }}" --dest /opt/wheelhouse \
     && rm -rf "$venv"
 
 # datarobot ({{ datarobot_version }}; default when not listed in recipe)
@@ -109,9 +110,9 @@ RUN dr plugin install xp \
 RUN npx -y ai-agent-skills install datarobot-oss/datarobot-agent-skills --agent opencode
 
 # Pre-create the Agent Assist venv under the name dr-assist derives at runtime (the
-# wheel basename without .whl). Agent Assist builds this venv on first launch, which
-# fails in the offline image; baking it here lets it start. `uv venv` uses the system
-# interpreter (3.11), which matches the plugin's cp311 wheel.
+# wheel basename without .whl); building it on first launch fails offline. `uv venv`
+# takes the base interpreter; the plugin ships cp311 wheels only, so a non-3.11 base
+# fails here until it ships a matching wheel.
 # ~/.cache already exists root-owned from an earlier build step, so hand it to the
 # runtime user before creating the venv inside it.
 USER root

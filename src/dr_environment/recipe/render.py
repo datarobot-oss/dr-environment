@@ -52,8 +52,9 @@ def render_base_fragment(docker_context: Path, versions: dict) -> None:
     template = env.get_template("00-base.fragment.j2")
     content = template.render(
         uv_cache_dir="/opt/cache/uv",
-        # Defaults to 3.13; override with `python: {version: "3.11"}` in versions.yaml if
-        # pinned to a datarobot-genai older than 0.29.45 (pre-fix uvloop crash-loop).
+        # Defaults to 3.11 while datarobot-moderations caps at `<3.13`. Override with
+        # `python: {version: "3.13"}` in versions.yaml, but only on datarobot-genai
+        # 0.29.45 or newer (older pins crash-loop on uvloop).
         python_version=python_version(versions),
         target_platform="linux/amd64",
     )
