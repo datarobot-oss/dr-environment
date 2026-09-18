@@ -7,6 +7,8 @@ on:
   # Weekly, so a recipe or upstream change that breaks the image build surfaces without a merge.
   schedule:
     - cron: '0 6 * * 1'
+  # The image build is skipped on pull requests, so this is the only way to exercise it on a branch.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -148,7 +148,7 @@ def test_render_offline_fragment_without_cache_stages(tmp_path: Path) -> None:
     assert "COPY --from=" not in content
 
 
-def test_render_base_fragment_defaults_to_python_3_13_and_pins_the_build_platform(
+def test_render_base_fragment_defaults_to_python_3_11_and_pins_the_build_platform(
     tmp_path: Path,
 ) -> None:
     docker_context = tmp_path / "ctx"
