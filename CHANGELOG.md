@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.8
+- Install copier as `>=` the recipe's minimum instead of pinning it; the pin baked a release that does not import.
+- Create the Agent Assist venv with `--python 3.11`; the plugin ships cp311 wheels only.
+- Default the base Python back to `3.11`: `datarobot-moderations` requires `<3.13`.
+
 ## 0.1.7
 - Make the base-image Python version configurable via `python.version` in `versions.yaml` (allowlisted to `3.11`/`3.12`/`3.13`), and default it to `3.13` (was pinned to `3.11`). The pin existed only to dodge a dragent crash-loop on 3.12+: uvicorn aliases its `asyncio_run` to `asyncio.run`, which NAT patches via `nest_asyncio2`, and that patch can't touch a uvloop event loop (`Can't patch loop of type uvloop.Loop`). `datarobot-genai` 0.29.45 fixes this at the source by forcing the gunicorn path onto the standard asyncio loop instead of uvloop, so 3.13 is safe to default to. Recipes pinned to an older `datarobot-genai` can opt back into 3.11 with `python: {version: "3.11"}` in `versions.yaml`.
 

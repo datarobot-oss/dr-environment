@@ -93,7 +93,11 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     # The rest have no versions.yaml key, so they fall back to _DEFAULTS. Asserting against
     # _DEFAULTS rather than literals keeps a default bump from failing the test.
     assert f"OPENCODE_VERSION={_DEFAULTS['opencode']}" in content
-    assert f'uv tool install "copier=={_DEFAULTS["copier"]}"' in content
+    # A floor, not a pin.
+    assert f'uv tool install "copier>={_DEFAULTS["copier"]}"' in content
+    assert "copier==" not in content
+    # Agent Assist ships cp311 wheels only.
+    assert 'uv venv --python 3.11 "$venv_dir"' in content
     assert f"datarobot[core]>={_DEFAULTS['datarobot']}" in content
     assert f"PULUMI_DATAROBOT_VERSION=v{_DEFAULTS['pulumi_datarobot']}" in content
     assert f"PULUMI_COMMAND_VERSION=v{_DEFAULTS['pulumi_command']}" in content
@@ -152,7 +156,7 @@ def test_render_base_fragment_defaults_to_python_3_13_and_pins_the_build_platfor
     render_base_fragment(docker_context, {})
     fragment = (docker_context / "dockerfile.d" / "00-base.fragment").read_text(encoding="utf-8")
 
-    assert "ARG PYTHON_VERSION=3.13" in fragment
+    assert "ARG PYTHON_VERSION=3.11" in fragment
     assert "ARG TARGETPLATFORM=linux/amd64" in fragment
     assert "FROM --platform=${TARGETPLATFORM}" in fragment
 
@@ -160,10 +164,10 @@ def test_render_base_fragment_defaults_to_python_3_13_and_pins_the_build_platfor
 def test_render_base_fragment_honors_configured_python_version(tmp_path: Path) -> None:
     docker_context = tmp_path / "ctx"
 
-    render_base_fragment(docker_context, {"python": {"version": "3.11"}})
+    render_base_fragment(docker_context, {"python": {"version": "3.13"}})
     fragment = (docker_context / "dockerfile.d" / "00-base.fragment").read_text(encoding="utf-8")
 
-    assert "ARG PYTHON_VERSION=3.11" in fragment
+    assert "ARG PYTHON_VERSION=3.13" in fragment
 
 
 def test_render_base_fragment_rejects_unsupported_python_version(tmp_path: Path) -> None:
