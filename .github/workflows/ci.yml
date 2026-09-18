@@ -276,7 +276,6 @@ jobs:
   # (a tool pin that does not install, a wheel with no matching Python) passes CI. This
   # builds the real image from the public agent recipe's main after every merge to main and weekly.
   image:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
