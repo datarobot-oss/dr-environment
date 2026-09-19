@@ -17,7 +17,7 @@ Guidelines for developing and contributing to this project.
 ## Did you find a bug?
 
 - For a security vulnerability, do not open an issue; see [SECURITY.md](SECURITY.md)
-- Ensure the bug was not already reported in the projects Issues section
+- Ensure the bug was not already reported in the project's Issues section
 - Open an issue as described above
 
 ## Changelog
