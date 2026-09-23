@@ -124,8 +124,17 @@ docker_context/
 │   ├── setup-caches.sh        # offline cache paths for login shells
 │   ├── start_server_*.sh      # Codespaces and deployed-model entrypoints
 │   └── agent/, extensions/    # kernel assets
-└── components/<name>/         # per-component manifests
+├── components/<name>/         # per-component manifests
+└── component-templates/<repo>.git  # the agent component's copier template, when the recipe has one
 ```
+
+## Agent frameworks
+
+For an [af-component-agent](https://github.com/datarobot-community/af-component-agent) component,
+the build clones the template at the recipe's pin, renders every `agent_template_framework`
+choice and caches each distinct `uv.lock` like a component. The clone is baked at
+`/opt/component-templates` and git serves it for the template's origin URL (`insteadOf`), so
+`task start` switches frameworks offline with no git mirror. Needs `git` and `uvx` on the builder.
 
 ## Lockfile policy
 

@@ -61,6 +61,14 @@ COPY kernel/start_server_custom_model.sh /opt/code/start_server.sh
 RUN sed -i 's/\r$//' /opt/code/start_server.sh \
     && chmod a+x /opt/code/start_server.sh \
     && mkdir -p /opt/venv && chmod a+rwx /opt/venv
+{% if templates %}
+
+# Component templates for offline `task start`: git serves the clone for the origin URL (and
+# for a platform mirror URL, see setup-caches.sh). Owned by notebooks: git refuses other owners.
+COPY --chown=notebooks:notebooks {{ templates_dir }}/ {{ templates_mount }}/
+RUN {% for template in templates %}git config --system url."{{ template.url }}".insteadOf "{{ template.src_path }}"{% if not loop.last %} \
+    && {% endif %}{% endfor %}
+{% endif %}
 
 USER notebooks
 
@@ -73,7 +81,6 @@ USER notebooks
 # unreachable) and re-resolves from scratch, which then fails offline. `--frozen` skips
 # the check entirely, so it doesn't matter what UV_INDEX_URL is set to.
 ENV HOME=/home/notebooks \
-    PATH="${VENV_PATH}/bin:/home/notebooks/.local/bin:$PATH" \
     PYTHONPATH="/home/notebooks/.ipython/extensions:/home/notebooks/storage" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -95,4 +102,5 @@ ENV HOME=/home/notebooks \
     NPM_CONFIG_OFFLINE=true \
     GOPROXY=off \
     DEEPEVAL_HOME=/tmp/.deepeval \
-    DEEPEVAL_TELEMETRY_OPT_OUT="YES"
+    DEEPEVAL_TELEMETRY_OPT_OUT="YES" \
+    LITELLM_LOCAL_MODEL_COST_MAP=True

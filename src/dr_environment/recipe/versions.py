@@ -49,9 +49,9 @@ _DEFAULTS = {
     "pulumi": "3.163.0",
     "opencode": "1.17.11",
     "copier": "9.17.0",
-    "datarobot": "3.19.0",
-    "pulumi_datarobot": "0.10.43",
-    "pulumi_command": "1.2.1",
+    "drdev": "3.19.0",
+    "pulumi-datarobot": "0.10.43",
+    "pulumi-command": "1.2.1",
 }
 
 # An exact Wolfi apk suffix, not a floor like the tools above, hence its own allowlist.
@@ -91,7 +91,8 @@ def parse_tool_versions(versions: dict) -> ToolVersions:
         pulumi=_minimum_version(versions, "pulumi"),
         opencode=_minimum_version(versions, "opencode"),
         copier=_minimum_version(versions, "copier"),
-        datarobot=_minimum_version(versions, "datarobot"),
-        pulumi_datarobot=_release_tag(_minimum_version(versions, "pulumi_datarobot")),
-        pulumi_command=_release_tag(_minimum_version(versions, "pulumi_command")),
+        # Keyed as the recipe's versions.yaml spells them.
+        datarobot=_minimum_version(versions, "drdev"),
+        pulumi_datarobot=_release_tag(_minimum_version(versions, "pulumi-datarobot")),
+        pulumi_command=_release_tag(_minimum_version(versions, "pulumi-command")),
     )

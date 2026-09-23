@@ -33,6 +33,9 @@ WORKDIR ${WORKDIR}
 RUN uv venv "${VENV_PATH}"
 COPY kernel/requirements.txt /tmp/kernel/requirements.txt
 RUN uv pip install --no-cache -r /tmp/kernel/requirements.txt --python "${VENV_PATH}/bin/python"
+# This venv's drdev shadows the uv tool one on PATH, so it must meet the recipe's floor too.
+# requirements.txt keeps the dependabot pin; a no-op until a recipe asks for more.
+RUN uv pip install --no-cache "datarobot[core]>={{ datarobot_version }}" --python "${VENV_PATH}/bin/python"
 
 COPY kernel/agent/agent.py kernel/agent/cgroup_watchers.py ${AGENTDIR}/
 COPY kernel/jupyter_kernel_gateway_config.py ${WORKDIR}/jupyter_kernel_gateway_config.py

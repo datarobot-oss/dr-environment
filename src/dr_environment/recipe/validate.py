@@ -38,8 +38,10 @@ MANIFEST_SPECS: tuple[tuple[str, str, Ecosystem, str], ...] = (
 # components use. Point the user at the installer rather than leaking a bare FileNotFoundError.
 TOOL_INSTALL_HINTS: dict[str, str] = {
     "uv": "https://docs.astral.sh/uv/getting-started/installation/",
+    "uvx": "https://docs.astral.sh/uv/getting-started/installation/",
     "npm": "https://nodejs.org/en/download",
     "go": "https://go.dev/dl/",
+    "git": "https://git-scm.com/downloads",
 }
 
 

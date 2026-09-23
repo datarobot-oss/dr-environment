@@ -82,7 +82,7 @@ RUN venv=/tmp/copier-wheelhouse-warm \
     && "$venv/bin/python" -m pip download --only-binary=:all: "copier>={{ copier_version }}" --dest /opt/wheelhouse \
     && rm -rf "$venv"
 
-# datarobot ({{ datarobot_version }}; default when not listed in recipe)
+# versions.yaml — drdev ({{ datarobot_version }}; the datarobot package)
 RUN uv tool install --force "datarobot[core]>={{ datarobot_version }}"
 
 # versions.yaml — task ({{ task_version }})
@@ -130,7 +130,7 @@ RUN curl -fsSL https://get.pulumi.com | sh -s -- \
 
 RUN pulumi login --local
 
-# pulumi-datarobot provider ({{ pulumi_datarobot_version }}; not in versions.yaml, default when not listed in recipe)
+# versions.yaml — pulumi-datarobot ({{ pulumi_datarobot_version }})
 RUN pulumi plugin install resource datarobot "$PULUMI_DATAROBOT_VERSION" \
     --server github://api.github.com/datarobot-community/pulumi-datarobot
 

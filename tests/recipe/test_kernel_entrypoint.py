@@ -40,6 +40,7 @@ esac
 exit 0
 """,
     "nat": """#!/bin/sh
+echo "HOME=$HOME" >> "$RECORD"
 echo "nat $*" >> "$RECORD"
 exit 0
 """,
@@ -58,6 +59,7 @@ def _run(
     offline: bool,
     url_prefix: str = "",
     expect_exit: int = 0,
+    home: Path | None = None,
 ) -> tuple[str, str]:
     code_dir = tmp_path / "code"
     code_dir.mkdir()
@@ -92,6 +94,9 @@ def _run(
         env["UV_OFFLINE"] = "1"
     if url_prefix:
         env["URL_PREFIX"] = url_prefix
+    if home is not None:
+        env["HOME"] = str(home)
+        env["TMPDIR"] = str(tmp_path)
 
     # The script runs by path rather than `sh <script>`, because the image chmods and execs
     # it, so the shebang selects the interpreter in production.
@@ -146,3 +151,24 @@ def test_neither_entry_point_fails_with_a_readable_error(tmp_path: Path) -> None
     stdout, _ = _run(tmp_path, entry=None, offline=True, expect_exit=1)
 
     assert "No valid entry point found" in stdout
+
+
+def test_an_unwritable_home_is_replaced_before_the_agent_starts(tmp_path: Path) -> None:
+    """Models run as uid 1000, so the image HOME is read-only; crewai needs to write there on import."""
+    home = tmp_path / "notebooks-home"
+    home.mkdir()
+    home.chmod(0o555)
+
+    _, recorded = _run(tmp_path, entry="workflow", offline=True, home=home)
+
+    assert f"HOME={tmp_path / 'home'}" in recorded
+    assert (tmp_path / "home").is_dir()
+
+
+def test_a_writable_home_is_kept(tmp_path: Path) -> None:
+    home = tmp_path / "own-home"
+    home.mkdir()
+
+    _, recorded = _run(tmp_path, entry="workflow", offline=True, home=home)
+
+    assert f"HOME={home}" in recorded

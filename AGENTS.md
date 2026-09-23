@@ -28,10 +28,11 @@ docker build --platform linux/amd64 -t exec-env .
 
 1. Discovers components from the recipe root `Taskfile.yml` `includes`
 2. Validates lockfiles (fail-fast on missing/stale)
-3. Copies per-component manifests into `components/<name>/` (no dependency merging)
-4. Renders Dockerfile fragments (base → user → versions → build-deps → kernel → per-component cache stages → offline)
-5. Assembles `Dockerfile` from sorted `dockerfile.d/*.fragment`
-6. Optionally creates `docker_context.tar.gz` in the CWD
+3. For an af-component-agent component, bare-clones its template and renders every framework from it; each distinct `uv.lock` becomes an extra component (`variants.py`)
+4. Copies per-component manifests into `components/<name>/` (no dependency merging)
+5. Renders Dockerfile fragments (base → user → versions → build-deps → kernel → per-component cache stages → offline); the offline stage bakes the clone at `/opt/component-templates` behind a git `insteadOf`
+6. Assembles `Dockerfile` from sorted `dockerfile.d/*.fragment`
+7. Optionally creates `docker_context.tar.gz` in the CWD
 
 The generated image runs as the `notebooks` user, boots Jupyter Kernel Gateway, and sets strict offline env vars so `uv sync`, `npm ci`, and `go mod download` work from baked caches.
 
@@ -46,6 +47,7 @@ src/dr_environment/
     ├── validate.py     # Lockfile checks (uv lock --check, npm ci --dry-run, go mod verify)
     ├── layout.py       # Copy manifests; strip local `core` package from pyproject.toml
     ├── hooks.py        # Run component `task environment` hooks
+    ├── variants.py     # Clone the agent template; render and dedupe its frameworks
     ├── render.py       # Jinja templates + asset copy + Dockerfile assembly
     ├── versions.py     # Read recipe versions.yaml; defaults for unlisted tools
     ├── manifests.py    # Locate a component's manifest files
@@ -72,7 +74,8 @@ tests/                  # pytest; builds a context from tests/fixtures/recipe, n
 flowchart TD
     A[recipe Taskfile includes] --> B[discover_components]
     B --> C[validate_all lockfiles]
-    C --> D[copy_fragment_assets]
+    C --> V[expand_agent_variants: clone template, render frameworks]
+    V --> D[copy_fragment_assets]
     D --> E[render base/user/versions/build-deps/kernel fragments]
     E --> F{per component}
     F -->|HOOK| G[task environment]
@@ -181,6 +184,7 @@ Cache stage `COPY` uses `--chown=notebooks:notebooks` because cache stages build
 | Lockfile validation rules | `recipe/validate.py` |
 | Component discovery | `recipe/discover.py` |
 | Hook env contract | `recipe/hooks.py` |
+| Agent template clone, framework renders | `recipe/variants.py` |
 
 ## Testing
 

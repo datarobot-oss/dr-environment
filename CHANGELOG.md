@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.9
+- Bake the recipe's af-component-agent template into the image at `/opt/component-templates`, served by git `insteadOf` for its origin URL and for a platform-injected `APPLICATION_TEMPLATE_GIT_BASE_URL`, so `task start` recopies the agent offline without a git mirror.
+- Render every `agent_template_framework` choice and cache each distinct `uv.lock`, so any framework picked in a Codespace installs offline. The build now needs `git` and `uvx`.
+- Read `pulumi-datarobot`, `pulumi-command` and `drdev` from `versions.yaml` as the recipe spells them; the old lookups never matched and baked the defaults.
+- Put the kernel venv on `PATH` exactly once (offline stage and login-shell script); a second copy defeated the recipe's `start-app.sh` interpreter switch and the deployed application's migration.
+- Give deployed models (uid 1000) a writable `HOME`; crewai creates its storage directory there on import.
+- Set `LITELLM_LOCAL_MODEL_COST_MAP=True` in the offline stage so LiteLLM stops trying GitHub on import.
+- Install `datarobot[core]` into the kernel venv at the recipe's `drdev` floor; its `drdev` shadows the `uv tool` one on PATH and failed to import.
+
 ## 0.1.8
 - Install copier as `>=` the recipe's minimum instead of pinning it.
 - Default the base Python back to `3.11`: `datarobot-moderations` requires `<3.13`.

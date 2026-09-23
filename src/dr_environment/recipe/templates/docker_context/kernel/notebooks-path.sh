@@ -13,5 +13,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Tool paths for login and SSH sessions. sshd resets PATH to a minimal Wolfi default.
-export PATH="/etc/system/kernel/.venv/bin:/home/notebooks/.local/bin:/home/notebooks/.opencode/bin:${PATH}"
+# Tool paths for login and SSH sessions (sshd resets PATH). The venv must end up first and once:
+# the recipe's app start script strips one leading venv entry to reach the system python.
+tools="/etc/system/kernel/.venv/bin:/home/notebooks/.local/bin:/home/notebooks/.opencode/bin"
+rest=""
+_old_ifs="$IFS"; IFS=:
+for dir in $PATH; do
+  case ":${tools}:" in
+    *":${dir}:"*) ;;
+    *) rest="${rest:+${rest}:}${dir}" ;;
+  esac
+done
+IFS="$_old_ifs"; unset _old_ifs
+export PATH="${tools}${rest:+:${rest}}"
+unset tools rest dir
