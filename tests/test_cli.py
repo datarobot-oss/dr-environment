@@ -74,6 +74,33 @@ def test_recipe_command_skips_the_archive_when_asked(
     assert archive.read_bytes() == b"sentinel", "--no-tarball still wrote an archive"
 
 
+def test_recipe_command_python_version_overrides_versions_yaml(
+    recipe: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        cli, ["recipe", "--recipe-path", str(recipe), "--python-version", "3.13"]
+    )
+
+    assert result.exit_code == 0, result.output
+    fragment = Path("docker_context/dockerfile.d/00-base.fragment").read_text(encoding="utf-8")
+    assert "ARG PYTHON_VERSION=3.13" in fragment
+
+
+def test_recipe_command_rejects_an_unsupported_python_version(
+    recipe: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        cli, ["recipe", "--recipe-path", str(recipe), "--python-version", "3.9"]
+    )
+
+    assert result.exit_code != 0
+    assert "3.9" in result.output
+
+
 def test_a_recipe_without_a_taskfile_exits_nonzero_with_a_readable_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

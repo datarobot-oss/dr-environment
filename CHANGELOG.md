@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.9
+- Install `datarobot[core]` into the kernel venv and drop its `drdev` shim. The bare wheel's `drdev` and `datarobot.core` import pydantic, which only the `core` extra brings, and the kernel venv shadows the `uv tool` install on `PATH`.
+- Read `pulumi-datarobot` and `drdev` from `versions.yaml`; the lookup used the underscored field names, so recipe minimums were silently replaced by the built-in defaults.
+
 ## 0.1.8
 - Install copier as `>=` the recipe's minimum instead of pinning it.
 - Default the base Python back to `3.11`: `datarobot-moderations` requires `<3.13`.

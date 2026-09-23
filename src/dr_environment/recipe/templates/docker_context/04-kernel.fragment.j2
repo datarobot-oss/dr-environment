@@ -33,6 +33,8 @@ WORKDIR ${WORKDIR}
 RUN uv venv "${VENV_PATH}"
 COPY kernel/requirements.txt /tmp/kernel/requirements.txt
 RUN uv pip install --no-cache -r /tmp/kernel/requirements.txt --python "${VENV_PATH}/bin/python"
+# Kernel venv is first on PATH; let `drdev` resolve to the `uv tool` install instead.
+RUN rm -f "${VENV_PATH}/bin/drdev"
 
 COPY kernel/agent/agent.py kernel/agent/cgroup_watchers.py ${AGENTDIR}/
 COPY kernel/jupyter_kernel_gateway_config.py ${WORKDIR}/jupyter_kernel_gateway_config.py

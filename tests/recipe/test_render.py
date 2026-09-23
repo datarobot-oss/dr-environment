@@ -19,6 +19,7 @@ import pytest
 from dr_environment.recipe.render import (
     copy_fragment_assets,
     render_base_fragment,
+    render_kernel_setup_fragment,
     render_offline_fragment,
     render_versions_fragment,
     template_root,
@@ -39,13 +40,23 @@ def test_local_bytecode_is_not_copied_into_the_context(
     assert not (tmp_path / "ctx" / "kernel" / "__pycache__").exists()
 
 
+def test_render_kernel_fragment_drops_kernel_drdev_shim(tmp_path: Path) -> None:
+    docker_context = tmp_path / "ctx"
+    (docker_context / "dockerfile.d").mkdir(parents=True)
+
+    render_kernel_setup_fragment(docker_context)
+
+    content = (docker_context / "dockerfile.d" / "04-kernel.fragment").read_text()
+    assert 'rm -f "${VENV_PATH}/bin/drdev"' in content
+
+
 def test_kernel_datarobot_pin_matches_versions_default() -> None:
     """The kernel venv pin must not fall below the floor the image installs the SDK from."""
     reqs = template_root() / "kernel" / "requirements.txt"
     pinned = next(
         line.split("==", 1)[1].strip()
         for line in reqs.read_text(encoding="utf-8").splitlines()
-        if line.startswith("datarobot==")
+        if line.startswith("datarobot[core]==")
     )
     default = _DEFAULTS["datarobot"]
 
@@ -77,6 +88,8 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
         "git": {"minimum-version": "2.30.0"},
         "task": {"minimum-version": "3.43.3"},
         "pulumi": {"minimum-version": "3.206.0"},
+        "drdev": {"minimum-version": "3.20.0"},
+        "pulumi-datarobot": {"minimum-version": "0.12.3"},
     }
 
     render_versions_fragment(docker_context, versions)
@@ -96,9 +109,14 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     # A floor, not a pin.
     assert f'uv tool install "copier>={_DEFAULTS["copier"]}"' in content
     assert "copier==" not in content
-    assert f"datarobot[core]>={_DEFAULTS['datarobot']}" in content
-    assert f"PULUMI_DATAROBOT_VERSION=v{_DEFAULTS['pulumi_datarobot']}" in content
+    assert "datarobot[core]>=3.20.0" in content
+    assert "PULUMI_DATAROBOT_VERSION=v0.12.3" in content
     assert f"PULUMI_COMMAND_VERSION=v{_DEFAULTS['pulumi_command']}" in content
+    # The prebake runs the plugin's own script directly (not `uv venv`/`pip install`
+    # reimplemented here), so wheel selection and Python pin always match whatever
+    # dr-assist.sh itself does, with no separate logic to fall out of sync.
+    assert '"$HOME/.config/datarobot/plugins/assist/dr-assist.sh" --help' in content
+    assert "cp311" not in content
 
 
 def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) -> None:
