@@ -38,6 +38,13 @@ if [ "${UV_OFFLINE:-0}" != "1" ]; then
 fi
 export UV_CACHE_DIR="${UV_CACHE_DIR:-/tmp/uv-cache}"
 
+# Models run as uid 1000, not notebooks, so the image HOME is read-only for them and crewai
+# fails creating its storage dir on import. Give the process a HOME it owns.
+if [ ! -w "${HOME:-/}" ]; then
+    export HOME="${TMPDIR:-/tmp}/home"
+    mkdir -p "$HOME"
+fi
+
 # Create venv in code dir.
 uv venv "${UV_PROJECT_ENVIRONMENT}"
 # shellcheck disable=SC1091

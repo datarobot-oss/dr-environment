@@ -31,6 +31,20 @@ if [ "${NOTEBOOKS_AIR_GAP:-}" = "1" ]; then
   export GOPROXY=off
 fi
 
+# A platform-injected APPLICATION_TEMPLATE_GIT_BASE_URL is the mirror `task start` rewrites
+# answers files to; serve the baked templates for it too, with and without the .git suffix.
+BAKED_TEMPLATES="${BAKED_TEMPLATES:-/opt/component-templates}"
+if [ -n "${APPLICATION_TEMPLATE_GIT_BASE_URL:-}" ] && [ -d "$BAKED_TEMPLATES" ]; then
+  for repo in "$BAKED_TEMPLATES"/*.git; do
+    [ -d "$repo" ] || continue
+    key="url.file://${repo}.insteadOf"
+    name="$(basename "$repo")"
+    git config --global --unset-all "$key" 2>/dev/null || true
+    git config --global --add "$key" "${APPLICATION_TEMPLATE_GIT_BASE_URL%/}/${name}"
+    git config --global --add "$key" "${APPLICATION_TEMPLATE_GIT_BASE_URL%/}/${name%.git}"
+  done
+fi
+
 # Provider plugins are baked into $HOME/.pulumi/plugins at image build time, but the platform
 # points PULUMI_HOME at mounted persistent storage, which starts out empty on that volume.
 # Copy them in (symlinks aren't picked up by `pulumi plugin ls`) so pulumi finds them without

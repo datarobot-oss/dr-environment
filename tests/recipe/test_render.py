@@ -23,6 +23,7 @@ from dr_environment.recipe.render import (
     render_versions_fragment,
     template_root,
 )
+from dr_environment.recipe.variants import BakedTemplate
 from dr_environment.recipe.versions import _DEFAULTS
 
 
@@ -40,14 +41,18 @@ def test_local_bytecode_is_not_copied_into_the_context(
 
 
 def test_kernel_datarobot_pin_matches_versions_default() -> None:
-    """The kernel venv pin must not fall below the floor the image installs the SDK from."""
+    """The pin must not fall below the SDK floor and must carry `core`: the venv's drdev shadows
+    the uv tool one on PATH, so it has to be importable itself.
+    """
     reqs = template_root() / "kernel" / "requirements.txt"
-    pinned = next(
-        line.split("==", 1)[1].strip()
+    line = next(
+        line
         for line in reqs.read_text(encoding="utf-8").splitlines()
-        if line.startswith("datarobot==")
+        if line.startswith("datarobot")
     )
-    default = _DEFAULTS["datarobot"]
+    assert line.startswith("datarobot[core]=="), line
+    pinned = line.split("==", 1)[1].strip()
+    default = _DEFAULTS["drdev"]
 
     def parts(v: str) -> list[int]:
         return [int(x) for x in v.split(".") if x.isdigit()]
@@ -96,9 +101,9 @@ def test_render_versions_fragment_installs_all_tools(tmp_path: Path) -> None:
     # A floor, not a pin.
     assert f'uv tool install "copier>={_DEFAULTS["copier"]}"' in content
     assert "copier==" not in content
-    assert f"datarobot[core]>={_DEFAULTS['datarobot']}" in content
-    assert f"PULUMI_DATAROBOT_VERSION=v{_DEFAULTS['pulumi_datarobot']}" in content
-    assert f"PULUMI_COMMAND_VERSION=v{_DEFAULTS['pulumi_command']}" in content
+    assert f"datarobot[core]>={_DEFAULTS['drdev']}" in content
+    assert f"PULUMI_DATAROBOT_VERSION=v{_DEFAULTS['pulumi-datarobot']}" in content
+    assert f"PULUMI_COMMAND_VERSION=v{_DEFAULTS['pulumi-command']}" in content
 
 
 def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) -> None:
@@ -173,3 +178,32 @@ def test_render_base_fragment_rejects_unsupported_python_version(tmp_path: Path)
 
     with pytest.raises(ValueError, match="unsupported python version"):
         render_base_fragment(docker_context, {"python": {"version": "3.9"}})
+
+
+def test_render_offline_fragment_bakes_the_templates_only_when_there_are_some(
+    tmp_path: Path,
+) -> None:
+    docker_context = tmp_path / "ctx"
+    (docker_context / "dockerfile.d").mkdir(parents=True)
+    fragment = docker_context / "dockerfile.d" / "99-offline.fragment"
+
+    template = BakedTemplate(
+        src_path="https://github.com/datarobot-community/af-component-agent.git",
+        name="af-component-agent.git",
+    )
+    render_offline_fragment(docker_context, cache_stage="cache-agent", templates=[template])
+    with_templates = fragment.read_text()
+    render_offline_fragment(docker_context, cache_stage="cache-agent")
+    without_templates = fragment.read_text()
+
+    assert (
+        "COPY --chown=notebooks:notebooks component-templates/ /opt/component-templates/"
+        in with_templates
+    )
+    # git redirects the origin URL; no env var a platform could shadow.
+    assert (
+        'git config --system url."file:///opt/component-templates/af-component-agent.git".insteadOf '
+        '"https://github.com/datarobot-community/af-component-agent.git"'
+    ) in with_templates
+    assert "APPLICATION_TEMPLATE_GIT_BASE_URL" not in with_templates
+    assert "templates" not in without_templates

@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import shutil
+from collections.abc import Sequence
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from dr_environment.recipe.cache.stages import CACHE_COPY_PATHS
+from dr_environment.recipe.variants import TEMPLATES_DIR, TEMPLATES_MOUNT, BakedTemplate
 from dr_environment.recipe.versions import parse_tool_versions, python_version
 
 # Asset directories copied into docker_context; names match Dockerfile fragment stages.
@@ -100,20 +102,25 @@ def render_build_deps_fragment(docker_context: Path) -> None:
     (dockerfile_d / "03-build-deps.fragment").write_text(content, encoding="utf-8")
 
 
-def render_kernel_setup_fragment(docker_context: Path) -> None:
+def render_kernel_setup_fragment(docker_context: Path, versions: dict) -> None:
     env = _jinja_env()
     template = env.get_template("04-kernel.fragment.j2")
-    content = template.render()
+    content = template.render(datarobot_version=parse_tool_versions(versions).datarobot)
     dockerfile_d = docker_context / "dockerfile.d"
     (dockerfile_d / "04-kernel.fragment").write_text(content, encoding="utf-8")
 
 
-def render_offline_fragment(docker_context: Path, *, cache_stage: str | None) -> None:
+def render_offline_fragment(
+    docker_context: Path, *, cache_stage: str | None, templates: Sequence[BakedTemplate] = ()
+) -> None:
     env = _jinja_env()
     template = env.get_template("99-offline.fragment.j2")
     content = template.render(
         cache_stage=cache_stage,
         cache_copy_paths=CACHE_COPY_PATHS,
+        templates=list(templates),
+        templates_dir=TEMPLATES_DIR,
+        templates_mount=TEMPLATES_MOUNT,
     )
     dockerfile_d = docker_context / "dockerfile.d"
     (dockerfile_d / "99-offline.fragment").write_text(content, encoding="utf-8")

@@ -44,6 +44,8 @@ OFFLINE_ENV = (
     "NPM_CONFIG_OFFLINE=true",
     "NPM_CONFIG_PREFER_OFFLINE=true",
     "GOPROXY=off",
+    # LiteLLM fetches its cost map from GitHub on import and retries for seconds offline.
+    "LITELLM_LOCAL_MODEL_COST_MAP=True",
 )
 
 
@@ -118,6 +120,15 @@ def test_context_offline_stage_is_offline_and_not_root(dockerfile: str) -> None:
     assert users[-1] != "root"
 
 
+def test_the_kernel_venv_is_put_on_path_exactly_once(dockerfile: str) -> None:
+    """The recipe's app start script strips one leading venv entry to reach the system python;
+    a second copy survived it and the app's migration ran without alembic.
+    """
+    prepends = re.findall(r'PATH="\$\{?VENV_PATH\}?/bin:', dockerfile)
+
+    assert len(prepends) == 1, prepends
+
+
 def test_only_manifest_bearing_components_are_laid_out(context: Path) -> None:
     # The path uses the include name, not the directory basename, because the cache stage COPYs it.
     assert (context / "components" / "agent_app" / "pyproject.toml").is_file()
@@ -158,6 +169,12 @@ def test_recipe_versions_file_overrides_the_built_in_defaults(context: Path) -> 
     # Neither value is a built-in default, so both prove the recipe's own file was read.
     assert "ARG UV_VERSION=0.10.3" in versions
     assert "ARG TASK_VERSION=3.45.4" in versions
+    # Spelled as the recipe writes them, not as the tools are named.
+    assert "ARG PULUMI_DATAROBOT_VERSION=v0.11.3" in versions
+    assert "ARG DATAROBOT_VERSION=3.19.1" in versions
+    # The kernel venv's drdev shadows the uv tool one, so it is raised to the same floor.
+    kernel = (context / "dockerfile.d" / "04-kernel.fragment").read_text(encoding="utf-8")
+    assert 'uv pip install --no-cache "datarobot[core]>=3.19.1"' in kernel
 
 
 def test_rebuild_replaces_the_target_rather_than_merging_into_it(
@@ -244,3 +261,53 @@ def test_build_runs_a_component_environment_hook_and_assembles_its_fragment(
         f"the hook's instructions landed in {hook_stage}, but the caches are copied out of "
         f"{perms.group(1)}"
     )
+
+
+def test_agent_frameworks_are_cached_and_the_template_is_baked(
+    agent_recipe: Path, template_repo: Path, stub_uvx: Path, tmp_path: Path
+) -> None:
+    """Offline `task start` needs the template and every framework's wheels in the image."""
+    context = build(agent_recipe, tmp_path / "ctx", tarball=False)
+    dockerfile = _instructions((context / "Dockerfile").read_text(encoding="utf-8"))
+
+    chain = re.findall(r"^FROM\s+(\S+)\s+AS\s+(cache-\S+)\s*$", dockerfile, re.MULTILINE | re.I)
+    assert chain == [
+        ("kernel", "cache-agent_app"),
+        ("cache-agent_app", "cache-frontend"),
+        ("cache-frontend", "cache-agent_app-crewai"),
+        ("cache-agent_app-crewai", "cache-perms"),
+    ]
+    assert (context / "components" / "agent_app-crewai" / "uv.lock").is_file()
+    # The clone git serves for the template's origin URL.
+    assert (context / "component-templates" / "af-component-agent.git" / "HEAD").is_file()
+    offline_stage = dockerfile.split("AS offline", 1)[1]
+    assert (
+        "COPY --chown=notebooks:notebooks component-templates/ /opt/component-templates/"
+        in offline_stage
+    )
+    assert (
+        f'git config --system url."file:///opt/component-templates/af-component-agent.git".insteadOf '
+        f'"{template_repo}"'
+    ) in offline_stage
+    assert "APPLICATION_TEMPLATE_GIT_BASE_URL" not in dockerfile
+
+
+def test_a_stale_lock_in_a_framework_render_blames_the_template(
+    agent_recipe: Path, stub_uvx: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("UVX_STALE", "crewai")
+
+    with pytest.raises(ValidationError) as error_info:
+        build(agent_recipe, tmp_path / "ctx", tarball=False)
+
+    message = str(error_info.value)
+    assert "agent_app-crewai" in message
+    # The inherited hint would say `cd agent && uv lock`, the recipe's healthy directory.
+    assert "af-component-agent" in message
+
+
+def test_a_recipe_without_an_agent_component_bakes_no_templates(
+    context: Path, dockerfile: str
+) -> None:
+    assert not (context / "component-templates").exists()
+    assert "APPLICATION_TEMPLATE_GIT_BASE_URL" not in dockerfile
