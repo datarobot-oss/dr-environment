@@ -51,6 +51,7 @@ def build(
     target: Path,
     *,
     tarball: bool = True,
+    python_version: str | None = None,
 ) -> Path:
     recipe_path = recipe_path.resolve()
     docker_context = target.resolve() if target.is_absolute() else (Path.cwd() / target).resolve()
@@ -79,6 +80,9 @@ def build(
     (docker_context / "dockerfile.d").mkdir(parents=True)
 
     versions = load_versions(versions_file)
+    if python_version is not None:
+        # CLI override wins outright over whatever (if anything) versions.yaml states.
+        versions = {**versions, "python": {"version": python_version}}
     copy_fragment_assets(docker_context)
     render_base_fragment(docker_context, versions)
     render_user_fragment(docker_context)

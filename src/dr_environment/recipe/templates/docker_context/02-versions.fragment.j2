@@ -109,19 +109,12 @@ RUN dr plugin install xp \
 # Pre-install datarobot skills for opencode
 RUN npx -y ai-agent-skills install datarobot-oss/datarobot-agent-skills --agent opencode
 
-# Pre-create the Agent Assist venv under the name dr-assist derives at runtime (the
-# wheel basename without .whl); building it on first launch fails offline. `uv venv`
-# takes the base interpreter; the plugin ships cp311 wheels only, so a non-3.11 base
-# fails here until it ships a matching wheel.
-# ~/.cache already exists root-owned from an earlier build step, so hand it to the
-# runtime user before creating the venv inside it.
+# Pre-create the Agent Assist venv by running its own plugin script, so wheel selection,
+# Python pin, and dependency resolution stay exactly whatever dr-assist.sh itself does
 USER root
 RUN install -d -o "$UNAME" -g "$UNAME" /home/notebooks/.cache
 USER $UNAME
-RUN wheel=$(echo /home/notebooks/.config/datarobot/plugins/assist/dr_assist-*-cp311-cp311-manylinux*_x86_64*.whl) \
-    && venv_dir="/home/notebooks/.cache/dr-assist-venv-$(basename "$wheel" .whl)" \
-    && uv venv "$venv_dir" \
-    && uv pip install --python "$venv_dir/bin/python" "$wheel"
+RUN "$HOME/.config/datarobot/plugins/assist/dr-assist.sh" --help
 
 # versions.yaml — pulumi ({{ pulumi_version }})
 RUN curl -fsSL https://get.pulumi.com | sh -s -- \
@@ -130,11 +123,11 @@ RUN curl -fsSL https://get.pulumi.com | sh -s -- \
 
 RUN pulumi login --local
 
-# pulumi-datarobot provider ({{ pulumi_datarobot_version }}; not in versions.yaml, default when not listed in recipe)
+# versions.yaml — pulumi-datarobot provider ({{ pulumi_datarobot_version }})
 RUN pulumi plugin install resource datarobot "$PULUMI_DATAROBOT_VERSION" \
     --server github://api.github.com/datarobot-community/pulumi-datarobot
 
-# pulumi command provider ({{ pulumi_command_version }}; not in versions.yaml, default when not listed in recipe)
+# versions.yaml — pulumi-command provider ({{ pulumi_command_version }}; default when not listed in recipe)
 RUN pulumi plugin install resource command "$PULUMI_COMMAND_VERSION"
 
 # versions.yaml — opencode ({{ opencode_version }})
