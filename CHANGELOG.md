@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## 0.1.9
+- Add `--python-version` to `dr environment recipe`, overriding `versions.yaml`'s `python.version` and its default.
+- Allowlist Python `3.14` as a Wolfi base, alongside `3.11`/`3.12`/`3.13`.
+- Pre-create the Agent Assist venv by running `dr-assist.sh --help` instead of hand-picking a cp311 wheel, so wheel selection follows the plugin and works on non-3.11 bases.
 - Install `datarobot[core]` into the kernel venv and drop its `drdev` shim. The bare wheel's `drdev` and `datarobot.core` import pydantic, which only the `core` extra brings, and the kernel venv shadows the `uv tool` install on `PATH`.
 - Read `pulumi-datarobot` and `drdev` from `versions.yaml`; the lookup used the underscored field names, so recipe minimums were silently replaced by the built-in defaults.
 
