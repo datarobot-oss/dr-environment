@@ -3,11 +3,14 @@ version: 2
 # Every label used below must exist in the repo; dependabot drops unknown ones silently.
 # Every ecosystem is grouped, so each opens one pull request a week instead of one per
 # dependency, and runs the check suite once rather than once per bump.
+# Each ecosystem runs on its own weekday. Merging one leaves any other open bump behind main,
+# which the ruleset refuses to merge, and neither dependabot nor automerge rebases it.
 updates:
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 1
     labels:
       - "dependencies"
@@ -23,6 +26,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "tuesday"
     open-pull-requests-limit: 1
     labels:
       - "dependencies"
@@ -42,6 +46,7 @@ updates:
       - "/src/dr_environment/recipe/templates/docker_context/build-deps"
     schedule:
       interval: "weekly"
+      day: "wednesday"
     open-pull-requests-limit: 1
     labels:
       - "dependencies"
