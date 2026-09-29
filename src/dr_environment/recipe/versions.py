@@ -54,8 +54,17 @@ _DEFAULTS = {
     "pulumi_command": "1.2.1",
 }
 
-# An exact Wolfi apk suffix, not a floor like the tools above, hence its own allowlist.
-SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12", "3.13")
+# versions.yaml keys that differ from the field name.
+_YAML_KEYS = {
+    "datarobot": "drdev",
+    "pulumi_datarobot": "pulumi-datarobot",
+    "pulumi_command": "pulumi-command",
+}
+
+# An exact Wolfi apk suffix, not a floor like the tools above, hence its own allowlist —
+# not a claim any given recipe supports each of these, just what Wolfi packages exist to
+# build the base image from.
+SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12", "3.13", "3.14")
 _DEFAULT_PYTHON_VERSION = "3.11"
 
 
@@ -71,7 +80,8 @@ def python_version(versions: dict) -> str:
 
 
 def _minimum_version(versions: dict, tool: str) -> str:
-    raw = str(versions.get(tool, {}).get("minimum-version", _DEFAULTS[tool]))
+    key = _YAML_KEYS.get(tool, tool)
+    raw = str(versions.get(key, {}).get("minimum-version", _DEFAULTS[tool]))
     if not _VERSION_RE.fullmatch(raw):
         raise ValueError(f"invalid {tool} minimum-version in versions.yaml: {raw!r}")
     return raw

@@ -24,6 +24,7 @@ from pathlib import Path
 import click
 
 from dr_environment.recipe import build
+from dr_environment.recipe.versions import SUPPORTED_PYTHON_VERSIONS
 
 
 def _package_version() -> str:
@@ -62,11 +63,21 @@ def cli() -> None:
     help="Output directory relative to the current working directory, defaults to docker_context",
 )
 @click.option("--no-tarball", is_flag=True, help="Skip docker_context.tar.gz creation")
-def recipe_cmd(recipe_path: Path, target: str, no_tarball: bool) -> None:
+@click.option(
+    "--python-version",
+    type=click.Choice(SUPPORTED_PYTHON_VERSIONS),
+    default=None,
+    help="Override the base image's Python version, taking precedence over versions.yaml's "
+    "python.version (and its default) if set.",
+)
+def recipe_cmd(
+    recipe_path: Path, target: str, no_tarball: bool, python_version: str | None
+) -> None:
     """Build the recipe Codespace execution environment docker context."""
     docker_context = build(
         recipe_path.resolve(),
         Path(target),
+        python_version=python_version,
         tarball=not no_tarball,
     )
     click.echo(f"Built docker context: {docker_context}")
