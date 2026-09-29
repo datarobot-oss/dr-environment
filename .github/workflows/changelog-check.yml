@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   changelog:
-    uses: datarobot-oss/github-actions/.github/workflows/check-changelog.yaml@0.0.28
+    uses: datarobot-oss/github-actions/.github/workflows/check-changelog.yaml@0.0.29
     permissions:
       contents: read
     with:
