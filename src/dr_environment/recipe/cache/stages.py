@@ -121,10 +121,12 @@ def _python_cache_lines(component_name: str) -> list[str]:
         # build offline (e.g. rouge-score >=0.0.7 is sdist-only but pure Python, needing only
         # the setuptools we already bake in) — rejecting all sdists here would fail builds
         # over packages that build fine, not just the genuinely risky ones.
+        # pip installs with --no-config: `uv pip` honours the component's `[tool.uv]`, and a
+        # component that excludes pip there would make the install a silent no-op.
         f"RUN UV_PROJECT_ENVIRONMENT={warm_venv} \\",
         f"    uv sync {sync_flags} \\",
         '        --python "${VENV_PATH}/bin/python" \\',
-        f"    && uv pip install --no-cache --python {warm_venv}/bin/python pip \\",
+        f"    && uv pip install --no-config --no-cache --python {warm_venv}/bin/python pip \\",
         "    && uv export --frozen --no-dev --no-emit-local --no-emit-project \\",
         f"        -o {wheelhouse_req} \\",
         f"    && {warm_venv}/bin/python -m pip download --no-deps --no-cache-dir \\",
