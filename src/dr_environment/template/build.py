@@ -47,16 +47,16 @@ def load_versions(versions_file: Path) -> dict:
 
 
 def build(
-    recipe_path: Path,
+    template_path: Path,
     target: Path,
     *,
     tarball: bool = True,
     python_version: str | None = None,
 ) -> Path:
-    recipe_path = recipe_path.resolve()
+    template_path = template_path.resolve()
     docker_context = target.resolve() if target.is_absolute() else (Path.cwd() / target).resolve()
     # The target is emptied before the build writes into it, so it may only be an empty
-    # directory or a previously generated context: `--target .` would delete the recipe itself.
+    # directory or a previously generated context: `--target .` would delete the template itself.
     if (
         docker_context.exists()
         and (not docker_context.is_dir() or any(docker_context.iterdir()))
@@ -66,9 +66,9 @@ def build(
             f"refusing to build into {docker_context}: it already exists and was not generated "
             "by this tool"
         )
-    versions_file = recipe_path / ".datarobot/cli/versions.yaml"
+    versions_file = template_path / ".datarobot/cli/versions.yaml"
 
-    components = discover_components(recipe_path)
+    components = discover_components(template_path)
     validate_all(components)
     for component in components:
         inspect_component(component)

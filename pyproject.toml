@@ -52,7 +52,7 @@ packages = ["src/dr_environment"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Without uv or npm on PATH the fixture recipe skips every end-to-end test, and -ra prints
+# Without uv or npm on PATH the fixture template skips every end-to-end test, and -ra prints
 # the skip reason instead of a bare `s`.
 addopts = ["-ra"]
 

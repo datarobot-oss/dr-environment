@@ -21,9 +21,9 @@ from dr_environment.template.models import ComponentStrategy
 
 
 def test_discover_components_finds_nested_bin_manifest(tmp_path: Path) -> None:
-    recipe = tmp_path / "recipe"
-    recipe.mkdir()
-    docs_bin = recipe / "docs" / ".bin"
+    template = tmp_path / "template"
+    template.mkdir()
+    docs_bin = template / "docs" / ".bin"
     docs_bin.mkdir(parents=True)
     (docs_bin / "pyproject.toml").write_text("[project]\nname='af-component-docs'\n")
     (docs_bin / "uv.lock").write_text("")
@@ -34,9 +34,9 @@ def test_discover_components_finds_nested_bin_manifest(tmp_path: Path) -> None:
             "docs": {"taskfile": "./docs/Taskfile.yaml", "dir": "./docs"},
         },
     }
-    (recipe / "Taskfile.yml").write_text(yaml.dump(taskfile))
+    (template / "Taskfile.yml").write_text(yaml.dump(taskfile))
 
-    components = discover_components(recipe)
+    components = discover_components(template)
     assert len(components) == 1
     assert components[0].name == "docs"
     assert components[0].strategy == ComponentStrategy.DEFAULT

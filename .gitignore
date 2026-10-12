@@ -211,7 +211,7 @@ __marimo__/
 # deepeval local state
 .deepeval/
 
-# lockfiles for the test fixture recipe, generated on demand so they cannot go stale
+# lockfiles for the test fixture template, generated on demand so they cannot go stale
 /tests/fixtures/template/agent/uv.lock
 /tests/fixtures/template/frontend/package-lock.json
 

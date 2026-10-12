@@ -22,21 +22,21 @@ from pathlib import Path
 
 import pytest
 
-FIXTURE_RECIPE = Path(__file__).resolve().parent / "fixtures" / "template"
+FIXTURE_TEMPLATE = Path(__file__).resolve().parent / "fixtures" / "template"
 
 
 @pytest.fixture(scope="session")
-def _locked_recipe(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Lock the fixture recipe once per session; tests copy from the result.
+def _locked_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Lock the fixture template once per session; tests copy from the result.
 
     Generated, not committed: a lockfile from another uv or npm fails its ecosystem's check.
     """
     for tool in ("uv", "npm"):
         if shutil.which(tool) is None:
-            pytest.skip(f"{tool} is required to lock and validate the fixture recipe")
+            pytest.skip(f"{tool} is required to lock and validate the fixture template")
 
-    root = tmp_path_factory.mktemp("locked-recipe") / "recipe"
-    shutil.copytree(FIXTURE_RECIPE, root)
+    root = tmp_path_factory.mktemp("locked-template") / "template"
+    shutil.copytree(FIXTURE_TEMPLATE, root)
     for component, command in (
         ("agent", ["uv", "lock"]),
         ("frontend", ["npm", "install", "--package-lock-only", "--ignore-scripts"]),
@@ -50,10 +50,10 @@ def _locked_recipe(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture
-def recipe(_locked_recipe: Path, tmp_path: Path) -> Path:
-    """Copy the locked fixture recipe, so a test is free to mutate its own tree."""
-    root = tmp_path / "recipe"
-    shutil.copytree(_locked_recipe, root)
+def template(_locked_template: Path, tmp_path: Path) -> Path:
+    """Copy the locked fixture template, so a test is free to mutate its own tree."""
+    root = tmp_path / "template"
+    shutil.copytree(_locked_template, root)
     return root
 
 

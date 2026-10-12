@@ -81,7 +81,7 @@ def test_a_stale_npm_lockfile_names_npms_own_tool(tmp_path: Path) -> None:
 
 
 def test_validate_all_reports_every_broken_component_not_just_the_first(tmp_path: Path) -> None:
-    """One run has to list them all, or a recipe is fixed one `dr environment` call at a time."""
+    """One run has to list them all, or a template is fixed one `dr environment` call at a time."""
     components = []
     for name in ("agent", "core"):
         component = _component(tmp_path, name)

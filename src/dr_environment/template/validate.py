@@ -34,8 +34,9 @@ MANIFEST_SPECS: tuple[tuple[str, str, Ecosystem, str], ...] = (
     ("go.mod", "go.sum", Ecosystem.GO, "go mod tidy"),
 )
 
-# Each ecosystem is validated with its own native tool, so a recipe pulls in whichever of these its
-# components use. Point the user at the installer rather than leaking a bare FileNotFoundError.
+# Each ecosystem is validated with its own native tool, so an application template pulls in
+# whichever of these its components use. Point the user at the installer rather than leaking a
+# bare FileNotFoundError.
 TOOL_INSTALL_HINTS: dict[str, str] = {
     "uv": "https://docs.astral.sh/uv/getting-started/installation/",
     "npm": "https://nodejs.org/en/download",

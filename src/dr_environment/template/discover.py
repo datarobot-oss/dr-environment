@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Discover recipe components from the root Taskfile."""
+"""Discover application template components from the root Taskfile."""
 
 from __future__ import annotations
 
@@ -41,15 +41,15 @@ def has_environment_task(taskfile: Path) -> bool:
 
 
 def discover_components(
-    recipe_path: Path,
+    template_path: Path,
     *,
     component_filter: set[str] | None = None,
     skip_hooks: bool = False,
 ) -> list[Component]:
     """Return components from root Taskfile includes."""
-    root_taskfile = find_taskfile(recipe_path)
+    root_taskfile = find_taskfile(template_path)
     if root_taskfile is None:
-        raise FileNotFoundError(f"No Taskfile.yml found in {recipe_path}")
+        raise FileNotFoundError(f"No Taskfile.yml found in {template_path}")
 
     data = yaml.safe_load(root_taskfile.read_text(encoding="utf-8")) or {}
     includes = data.get("includes") or {}
@@ -66,7 +66,7 @@ def discover_components(
 
         component_dir = Path(spec.get("dir", name))
         if not component_dir.is_absolute():
-            component_dir = (recipe_path / component_dir).resolve()
+            component_dir = (template_path / component_dir).resolve()
 
         taskfile = find_taskfile(component_dir)
         strategy = ComponentStrategy.DEFAULT

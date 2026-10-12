@@ -4,7 +4,8 @@ on:
   pull_request:
   push:
     branches: [ main ]
-  # Weekly, so a recipe or upstream change that breaks the image build surfaces without a merge.
+  # Weekly, so an application template or upstream change that breaks the image build surfaces
+  # without a merge.
   schedule:
     - cron: '0 6 * * 1'
   # The image build is skipped on pull requests, so this is the only way to exercise it on a branch.
@@ -159,7 +160,7 @@ jobs:
           if-no-files-found: ignore
 
   # Every other job here tests the code that writes the docker context. This one generates
-  # the context from the fixture recipe and inspects what came out, without building a layer.
+  # the context from the fixture template and inspects what came out, without building a layer.
   context:
     runs-on: ubuntu-latest
     permissions:
@@ -181,7 +182,7 @@ jobs:
 
       # The lockfiles are generated rather than committed, since validation runs each
       # ecosystem's own check. Both components are dependency-free, so no index is reached.
-      - name: Lock the fixture recipe
+      - name: Lock the fixture template
         run: |
           uv lock --directory tests/fixtures/template/agent
           npm install --package-lock-only --ignore-scripts \
@@ -274,7 +275,8 @@ jobs:
 
   # The jobs above never build a layer, so a Dockerfile that only fails inside a RUN step
   # (a tool pin that does not install, a wheel with no matching Python) passes CI. This
-  # builds the real image from the public agent recipe's main after every merge to main and weekly.
+  # builds the real image from the public agent application template's main after every merge
+  # to main and weekly.
   image:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -296,16 +298,16 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
-      - name: Clone the agent recipe
+      - name: Clone the agent application template
         run: >
           git clone --depth 1
           https://github.com/datarobot-community/datarobot-agent-application.git
-          ${{ runner.temp }}/recipe
+          ${{ runner.temp }}/template
 
       - name: Generate the docker context
         run: >
           uv run dr-environment template
-          --template-path ${{ runner.temp }}/recipe
+          --template-path ${{ runner.temp }}/template
           --target ${{ runner.temp }}/docker_context
           --no-tarball
 
