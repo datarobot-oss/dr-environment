@@ -17,8 +17,8 @@ from unittest.mock import patch
 
 import pytest
 
-from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem
-from dr_environment.recipe.validate import (
+from dr_environment.template.models import Component, ComponentStrategy, Ecosystem
+from dr_environment.template.validate import (
     ValidationError,
     inspect_component,
     validate_all,
@@ -37,7 +37,7 @@ def test_stale_uv_lock_detected_by_uv_lock_check(tmp_path: Path) -> None:
     (component.source_dir / "pyproject.toml").write_text("[project]\nname='x'\n")
     (component.source_dir / "uv.lock").write_text("lock")
 
-    with patch("dr_environment.recipe.validate.subprocess.run") as run:
+    with patch("dr_environment.template.validate.subprocess.run") as run:
         run.return_value.returncode = 1
         infos = inspect_component(component)
 
@@ -54,7 +54,7 @@ def test_a_missing_validation_tool_points_at_its_installer(tmp_path: Path) -> No
     (component.source_dir / "package.json").write_text('{"name":"x"}')
     (component.source_dir / "package-lock.json").write_text("{}")
 
-    with patch("dr_environment.recipe.validate.subprocess.run", side_effect=FileNotFoundError):
+    with patch("dr_environment.template.validate.subprocess.run", side_effect=FileNotFoundError):
         with pytest.raises(ValidationError) as exc:
             validate_component(component)
 
@@ -68,7 +68,7 @@ def test_a_stale_npm_lockfile_names_npms_own_tool(tmp_path: Path) -> None:
     (component.source_dir / "package.json").write_text('{"name":"x"}')
     (component.source_dir / "package-lock.json").write_text("")
 
-    with patch("dr_environment.recipe.validate.subprocess.run") as run:
+    with patch("dr_environment.template.validate.subprocess.run") as run:
         run.return_value.returncode = 1
         with pytest.raises(ValidationError) as exc:
             validate_component(component)

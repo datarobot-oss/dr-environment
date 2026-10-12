@@ -3,7 +3,7 @@
 > Contributor documentation: this describes verifying changes **to** this repo.
 
 Most of what follows is now automated. `uv run pytest` builds a context from
-`tests/fixtures/recipe` and asserts the layout, the stage order, the offline environment and
+`tests/fixtures/template` and asserts the layout, the stage order, the offline environment and
 the hook contract; CI additionally lints the generated Dockerfile with hadolint and resolves
 its stage graph with `docker buildx build --check`. Run the steps below when changing the
 Jinja templates, or to check something the suite does not reach: a real `docker build`, an image

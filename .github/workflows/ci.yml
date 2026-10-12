@@ -57,12 +57,12 @@ jobs:
       - name: Type check (mypy)
         run: uv run mypy src
 
-      # The templates directory is excluded from ruff and mypy, so nothing else lints these
+      # The docker_context directory is excluded from ruff and mypy, so nothing else lints these
       # scripts. F and E9 keep the scope to real breakage in adapted code, and the configs
       # skip F821 because jupyter injects the `c` they read.
       - name: Lint the shipped kernel assets
         env:
-          KERNEL: src/dr_environment/recipe/templates/docker_context/kernel
+          KERNEL: src/dr_environment/template/docker_context/kernel
         run: |
           uv run ruff check --isolated --select F,E9 \
             --per-file-ignores '*_config.py:F821' "${KERNEL}"
@@ -183,14 +183,14 @@ jobs:
       # ecosystem's own check. Both components are dependency-free, so no index is reached.
       - name: Lock the fixture recipe
         run: |
-          uv lock --directory tests/fixtures/recipe/agent
+          uv lock --directory tests/fixtures/template/agent
           npm install --package-lock-only --ignore-scripts \
-            --prefix tests/fixtures/recipe/frontend
+            --prefix tests/fixtures/template/frontend
 
       - name: Generate the docker context
         run: >
           uv run dr-environment template
-          --template-path tests/fixtures/recipe
+          --template-path tests/fixtures/template
           --target ${{ runner.temp }}/docker_context
           --no-tarball
 
@@ -263,8 +263,8 @@ jobs:
           # The image manifests list direct pins only, but the build installs their transitive
           # closures. Resolve each against the image's Python before auditing, or CVEs in
           # transitive packages ship without failing CI.
-          for f in src/dr_environment/recipe/templates/docker_context/kernel/requirements.txt \
-                   src/dr_environment/recipe/templates/docker_context/build-deps/build-requirements.txt; do
+          for f in src/dr_environment/template/docker_context/kernel/requirements.txt \
+                   src/dr_environment/template/docker_context/build-deps/build-requirements.txt; do
             resolved="${RUNNER_TEMP}/$(basename "$f").resolved.txt"
             uv pip compile --python-version 3.11 --no-header --no-annotate -o "$resolved" "$f"
             echo "::group::pip-audit $f"

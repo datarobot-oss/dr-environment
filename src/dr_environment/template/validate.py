@@ -19,8 +19,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from dr_environment.recipe.manifests import find_manifest_file
-from dr_environment.recipe.models import (
+from dr_environment.template.manifests import find_manifest_file
+from dr_environment.template.models import (
     Component,
     ComponentStrategy,
     Ecosystem,

@@ -16,8 +16,8 @@ from pathlib import Path
 
 import yaml
 
-from dr_environment.recipe.discover import discover_components
-from dr_environment.recipe.models import ComponentStrategy
+from dr_environment.template.discover import discover_components
+from dr_environment.template.models import ComponentStrategy
 
 
 def test_discover_components_finds_nested_bin_manifest(tmp_path: Path) -> None:

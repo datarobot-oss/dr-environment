@@ -24,8 +24,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from dr_environment.recipe.build import build, create_tarball
-from dr_environment.recipe.validate import ValidationError
+from dr_environment.template.build import build, create_tarball
+from dr_environment.template.validate import ValidationError
 
 # Every way one instruction can name an earlier stage: `COPY|ADD --from=`, `RUN --mount=,from=`.
 # Unanchored, so a line carrying two mounts has both of its references checked.

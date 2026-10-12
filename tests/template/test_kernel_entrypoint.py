@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from dr_environment.recipe.render import template_root
+from dr_environment.template.render import template_root
 
 ENTRYPOINT = template_root() / "kernel" / "start_server_custom_model.sh"
 

@@ -20,8 +20,8 @@ from pathlib import Path
 
 import yaml
 
-from dr_environment.recipe.manifests import has_any_manifest
-from dr_environment.recipe.models import Component, ComponentStrategy
+from dr_environment.template.manifests import has_any_manifest
+from dr_environment.template.models import Component, ComponentStrategy
 
 TASKFILE_NAMES = ("Taskfile.yml", "Taskfile.yaml")
 

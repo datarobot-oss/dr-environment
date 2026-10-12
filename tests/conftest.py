@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-FIXTURE_RECIPE = Path(__file__).resolve().parent / "fixtures" / "recipe"
+FIXTURE_RECIPE = Path(__file__).resolve().parent / "fixtures" / "template"
 
 
 @pytest.fixture(scope="session")

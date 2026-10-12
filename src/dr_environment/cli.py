@@ -23,8 +23,8 @@ from pathlib import Path
 
 import click
 
-from dr_environment.recipe import build
-from dr_environment.recipe.versions import SUPPORTED_PYTHON_VERSIONS
+from dr_environment.template import build
+from dr_environment.template.versions import SUPPORTED_PYTHON_VERSIONS
 
 
 def _package_version() -> str:

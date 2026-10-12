@@ -14,6 +14,6 @@
 # limitations under the License.
 """Recipe docker context builder."""
 
-from dr_environment.recipe.build import build
+from dr_environment.template.build import build
 
 __all__ = ["build"]

@@ -40,7 +40,7 @@ The generated image runs as the `notebooks` user, boots Jupyter Kernel Gateway, 
 ```
 src/dr_environment/
 ├── cli.py              # Click CLI; handles --dr-plugin-manifest before Click
-└── recipe/
+└── template/
     ├── build.py        # Orchestrates the full docker context build
     ├── discover.py     # Parse recipe Taskfile includes → Component list
     ├── validate.py     # Lockfile checks (uv lock --check, npm ci --dry-run, go mod verify)
@@ -53,7 +53,7 @@ src/dr_environment/
     └── cache/
         └── stages.py   # Generate per-component Dockerfile cache fragments
 
-src/dr_environment/recipe/templates/docker_context/
+src/dr_environment/template/docker_context/
 ├── 00-base.fragment.j2       # Wolfi base (digest-pinned) + CPython apk layers
 ├── 01-user.fragment.j2       # `notebooks` user, uid/gid 10101
 ├── 02-versions.fragment.j2   # uv, task, node, dr CLI, Pulumi, opencode, Agent Assist
@@ -63,7 +63,7 @@ src/dr_environment/recipe/templates/docker_context/
 ├── kernel/requirements.txt   # Kernel-only deps (NOT recipe component deps)
 └── build-deps/, kernel/      # render.py:FRAGMENT_ASSET_DIRS, copied in as directories
 
-tests/                  # pytest; builds a context from tests/fixtures/recipe, no docker build
+tests/                  # pytest; builds a context from tests/fixtures/template, no docker build
 ```
 
 ## Build pipeline
@@ -169,18 +169,18 @@ Cache stage `COPY` uses `--chown=notebooks:notebooks` because cache stages build
 | Change | File(s) |
 |--------|---------|
 | CLI options / entrypoint | `src/dr_environment/cli.py` |
-| Build orchestration | `recipe/build.py` |
-| Python/npm/go cache Dockerfile lines | `recipe/cache/stages.py` |
-| Wolfi base image, apk layers | `recipe/templates/docker_context/00-base.fragment.j2` |
-| dr CLI, Pulumi, tool versions | `recipe/templates/docker_context/02-versions.fragment.j2` |
-| Kernel venv, Jupyter assets | `recipe/templates/docker_context/04-kernel.fragment.j2` |
-| Offline env, cache perms, model entrypoint | `recipe/templates/docker_context/99-offline.fragment.j2` |
-| Kernel Jupyter deps | `recipe/templates/docker_context/kernel/requirements.txt` |
-| Runtime shell scripts | `recipe/templates/docker_context/kernel/` |
-| `core` stripping logic | `recipe/layout.py` |
-| Lockfile validation rules | `recipe/validate.py` |
-| Component discovery | `recipe/discover.py` |
-| Hook env contract | `recipe/hooks.py` |
+| Build orchestration | `template/build.py` |
+| Python/npm/go cache Dockerfile lines | `template/cache/stages.py` |
+| Wolfi base image, apk layers | `template/docker_context/00-base.fragment.j2` |
+| dr CLI, Pulumi, tool versions | `template/docker_context/02-versions.fragment.j2` |
+| Kernel venv, Jupyter assets | `template/docker_context/04-kernel.fragment.j2` |
+| Offline env, cache perms, model entrypoint | `template/docker_context/99-offline.fragment.j2` |
+| Kernel Jupyter deps | `template/docker_context/kernel/requirements.txt` |
+| Runtime shell scripts | `template/docker_context/kernel/` |
+| `core` stripping logic | `template/layout.py` |
+| Lockfile validation rules | `template/validate.py` |
+| Component discovery | `template/discover.py` |
+| Hook env contract | `template/hooks.py` |
 
 ## Testing
 
@@ -199,7 +199,7 @@ ls docker_context/dockerfile.d/
 grep -E "uv sync|UV_OFFLINE" docker_context/Dockerfile
 ```
 
-CI generates a context from `tests/fixtures/recipe`, lints it with hadolint and resolves its
+CI generates a context from `tests/fixtures/template`, lints it with hadolint and resolves its
 stage graph with `docker buildx build --check`. A real `docker build` is still manual:
 `docker build --platform linux/amd64`.
 

@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dr_environment.recipe.layout import LOCAL_SHARED_PACKAGE
-from dr_environment.recipe.models import Component, Ecosystem
+from dr_environment.template.layout import LOCAL_SHARED_PACKAGE
+from dr_environment.template.models import Component, Ecosystem
 
 PREVIOUS_STAGE = "kernel"
 RUNTIME_USER = "notebooks"

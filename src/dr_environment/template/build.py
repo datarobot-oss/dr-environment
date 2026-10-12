@@ -22,12 +22,12 @@ from pathlib import Path
 
 import yaml
 
-from dr_environment.recipe.cache.stages import write_component_cache_fragments
-from dr_environment.recipe.discover import discover_components
-from dr_environment.recipe.hooks import run_environment_hook
-from dr_environment.recipe.layout import layout_components
-from dr_environment.recipe.models import ComponentStrategy
-from dr_environment.recipe.render import (
+from dr_environment.template.cache.stages import write_component_cache_fragments
+from dr_environment.template.discover import discover_components
+from dr_environment.template.hooks import run_environment_hook
+from dr_environment.template.layout import layout_components
+from dr_environment.template.models import ComponentStrategy
+from dr_environment.template.render import (
     assemble_dockerfile,
     copy_fragment_assets,
     render_base_fragment,
@@ -37,7 +37,7 @@ from dr_environment.recipe.render import (
     render_user_fragment,
     render_versions_fragment,
 )
-from dr_environment.recipe.validate import inspect_component, validate_all
+from dr_environment.template.validate import inspect_component, validate_all
 
 
 def load_versions(versions_file: Path) -> dict:
