@@ -160,6 +160,17 @@ def test_recipe_versions_file_overrides_the_built_in_defaults(context: Path) -> 
     assert "ARG TASK_VERSION=3.45.4" in versions
 
 
+def test_the_context_never_says_recipe(context: Path) -> None:
+    """Users know the input as an application template; "recipe" is only this package's term."""
+    hits = [
+        str(path.relative_to(context))
+        for path in context.rglob("*")
+        if path.is_file() and b"recipe" in path.read_bytes().lower()
+    ]
+
+    assert hits == []
+
+
 def test_rebuild_replaces_the_target_rather_than_merging_into_it(
     recipe: Path, tmp_path: Path
 ) -> None:

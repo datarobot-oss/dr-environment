@@ -24,7 +24,7 @@
   </a>
 </p>
 
-Build Codespace-ready execution environment Docker contexts for DataRobot App Framework recipes. Uses a **customer-buildable Wolfi base** with Python 3.11 and pre-warmed shared **uv**, **npm**, and **Go** dependency caches.
+Build Codespace-ready execution environment Docker contexts for DataRobot application templates. Uses a **customer-buildable Wolfi base** with Python 3.11 and pre-warmed shared **uv**, **npm**, and **Go** dependency caches.
 
 > **Note**
 > Early development. The generated Dockerfile and the CLI flags may change between
@@ -50,22 +50,22 @@ curl https://cli.datarobot.com/install | sh
 # or: brew install datarobot-oss/taps/dr-cli
 ```
 
-Lockfile validation runs each ecosystem's own tool, so a recipe may also need
+Lockfile validation runs each ecosystem's own tool, so an application template may also need
 [Node.js](https://nodejs.org/en/download) for a `package.json`, [Go](https://go.dev/dl/) for a
 `go.mod`, or [Task](https://taskfile.dev/installation/) for an `environment` hook.
 
 ## Install
 
 ```bash
-uv tool install dr-environment
+uv tool install 'dr-environment>=0.1.11'
 ```
 
 ## Make an execution environment
 
-1. Generate the Docker context from your App Framework recipe:
+1. Generate the Docker context from your application template:
 
 ```bash
-dr environment recipe --recipe-path datarobot-agent-application
+dr environment template --template-path datarobot-agent-application
 ```
 
 This writes `docker_context/` in the current working directory (and `docker_context.tar.gz` unless you pass `--no-tarball`).
@@ -97,7 +97,7 @@ docker image save exec-env -o image.tar
 ## Usage reference
 
 ```bash
-dr environment recipe --recipe-path /path/to/datarobot-agent-application
+dr environment template --template-path /path/to/datarobot-agent-application
 ```
 
 Defaults:
@@ -109,7 +109,7 @@ Defaults:
 ### Options
 
 ```bash
-dr environment recipe --recipe-path . --no-tarball
+dr environment template --template-path . --no-tarball
 ```
 
 ## What it produces
@@ -153,7 +153,7 @@ This is deliberate and always-on, not a toggle for the platform to opt out of. W
 
 ## Component hooks
 
-If a component Taskfile defines an `environment` task, `dr environment recipe` runs it with:
+If a component Taskfile defines an `environment` task, `dr environment template` runs it with:
 
 | Variable | Purpose |
 |----------|---------|

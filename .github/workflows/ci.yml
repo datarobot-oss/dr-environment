@@ -189,8 +189,8 @@ jobs:
 
       - name: Generate the docker context
         run: >
-          uv run dr-environment recipe
-          --recipe-path tests/fixtures/recipe
+          uv run dr-environment template
+          --template-path tests/fixtures/recipe
           --target ${{ runner.temp }}/docker_context
           --no-tarball
 
@@ -304,8 +304,8 @@ jobs:
 
       - name: Generate the docker context
         run: >
-          uv run dr-environment recipe
-          --recipe-path ${{ runner.temp }}/recipe
+          uv run dr-environment template
+          --template-path ${{ runner.temp }}/recipe
           --target ${{ runner.temp }}/docker_context
           --no-tarball
 

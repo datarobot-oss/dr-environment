@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.11
+- Rename `dr environment recipe --recipe-path` to `dr environment template --template-path`; the old command and flag are removed.
+
 ## 0.1.10
 - Fix the image build when a component excludes `pip` in its `[tool.uv]`: the wheelhouse step's `uv pip install pip` honoured the exclusion and installed nothing.
 

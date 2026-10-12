@@ -2,7 +2,7 @@
 
 > Contributor documentation: this describes working **on** this repo, not using the environment it builds.
 
-DataRobot CLI plugin that builds **Codespace-ready execution environment Docker contexts** for App Framework recipes (e.g. `datarobot-agent-application`). Output is a customer-buildable Wolfi image with pre-warmed **uv**, **npm**, and **Go** caches for offline use in DataRobot notebooks.
+DataRobot CLI plugin that builds **Codespace-ready execution environment Docker contexts** for application templates (e.g. `datarobot-agent-application`). Output is a customer-buildable Wolfi image with pre-warmed **uv**, **npm**, and **Go** caches for offline use in DataRobot notebooks.
 
 ## Quick commands
 
@@ -14,8 +14,8 @@ pytest
 # Plugin manifest (required for dr CLI discovery)
 dr-environment --dr-plugin-manifest
 
-# Generate docker context from a recipe
-dr environment recipe --recipe-path /path/to/datarobot-agent-application
+# Generate docker context from an application template
+dr environment template --template-path /path/to/datarobot-agent-application
 
 # Build the image (always amd64)
 cd docker_context
@@ -24,7 +24,7 @@ docker build --platform linux/amd64 -t exec-env .
 
 ## What this repo does
 
-`dr environment recipe` takes an App Framework recipe and writes a `docker_context/` directory:
+`dr environment template` takes an application template (a "recipe" in the code) and writes a `docker_context/` directory:
 
 1. Discovers components from the recipe root `Taskfile.yml` `includes`
 2. Validates lockfiles (fail-fast on missing/stale)
@@ -194,7 +194,7 @@ Test against a real recipe:
 
 ```bash
 cd /path/to/datarobot-agent-application
-uv run dr-environment recipe --recipe-path . --no-tarball
+uv run dr-environment template --template-path . --no-tarball
 ls docker_context/dockerfile.d/
 grep -E "uv sync|UV_OFFLINE" docker_context/Dockerfile
 ```
@@ -253,7 +253,7 @@ Registered as DataRobot CLI plugin `environment`:
 ```bash
 uv tool install .
 dr plugin list          # should show environment
-dr environment recipe --recipe-path .
+dr environment template --template-path .
 ```
 
 Manifest is emitted via `dr-environment --dr-plugin-manifest` (handled in `cli.main()` before Click parses args).
