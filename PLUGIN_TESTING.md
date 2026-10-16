@@ -3,11 +3,11 @@
 > Contributor documentation: this describes verifying changes **to** this repo.
 
 Most of what follows is now automated. `uv run pytest` builds a context from
-`tests/fixtures/recipe` and asserts the layout, the stage order, the offline environment and
+`tests/fixtures/template` and asserts the layout, the stage order, the offline environment and
 the hook contract; CI additionally lints the generated Dockerfile with hadolint and resolves
 its stage graph with `docker buildx build --check`. Run the steps below when changing the
-templates, or to check something the suite does not reach: a real `docker build`, an image
-that runs with no network, and a recipe with npm or Go components. The fixture recipe is
+Jinja templates, or to check something the suite does not reach: a real `docker build`, an image
+that runs with no network, and an application template with npm or Go components. The fixture is
 locked with `uv` and `npm` once per session; without either on PATH those tests skip, naming
 the missing tool.
 
@@ -29,11 +29,11 @@ Expected manifest, where `version` is whatever `pyproject.toml` declares:
 }
 ```
 
-## Recipe against a local checkout
+## Template against a local checkout
 
 ```bash
 cd /path/to/datarobot-agent-application
-uv run dr-environment recipe --recipe-path .
+uv run dr-environment template --template-path .
 ```
 
 ## Build output
@@ -59,7 +59,7 @@ docker run --rm --network none exec-env sh -c 'uv sync --offline && uvx copier -
 
 ## Lockfile validation
 
-Remove `uv.lock` from a component and run `recipe` — expect:
+Remove `uv.lock` from a component and run `template` — expect:
 
 ```
 ERROR: component 'agent' has pyproject.toml but uv.lock is missing
@@ -99,7 +99,7 @@ tasks:
         EOF
 ```
 
-Run `dr-environment recipe` and verify the fragment appears in `dockerfile.d/`.
+Run `dr-environment template` and verify the fragment appears in `dockerfile.d/`.
 
 ## DataRobot CLI integration
 
@@ -107,5 +107,5 @@ After `uv tool install .`:
 
 ```bash
 dr plugin list   # should include environment
-dr environment recipe --recipe-path .
+dr environment template --template-path .
 ```

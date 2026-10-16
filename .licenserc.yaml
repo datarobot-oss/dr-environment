@@ -31,13 +31,13 @@ header:
 
   paths:
     - 'src/dr_environment/**/*.py'
-    - 'src/dr_environment/recipe/templates/docker_context/*.fragment.j2'
+    - 'src/dr_environment/template/docker_context/*.fragment.j2'
     - 'src/dr_environment/**/*.sh'
     - 'tests/**/*.py'
 
   paths-ignore:
     # Third-party: OpenSSH's stock server config (see NOTICE). Not ours to relicense.
-    - 'src/dr_environment/recipe/templates/docker_context/kernel/sshd_config'
+    - 'src/dr_environment/template/docker_context/kernel/sshd_config'
     - 'build/'
     - 'dist/'
     - 'venv/'

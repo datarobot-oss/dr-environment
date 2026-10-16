@@ -14,12 +14,12 @@
 # limitations under the License.
 from pathlib import Path
 
-from dr_environment.recipe.layout import (
+from dr_environment.template.layout import (
     LOCAL_SHARED_PACKAGE,
     copy_component,
     strip_local_shared_python_package,
 )
-from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
+from dr_environment.template.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
 
 
 def _python_component(name: str, manifest_dir: Path, pyproject: str) -> Component:

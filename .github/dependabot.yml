@@ -42,8 +42,8 @@ updates:
   # does not read bare requirements.txt, so these need their own pip entries.
   - package-ecosystem: "pip"
     directories:
-      - "/src/dr_environment/recipe/templates/docker_context/kernel"
-      - "/src/dr_environment/recipe/templates/docker_context/build-deps"
+      - "/src/dr_environment/template/docker_context/kernel"
+      - "/src/dr_environment/template/docker_context/build-deps"
     schedule:
       interval: "weekly"
       day: "wednesday"
