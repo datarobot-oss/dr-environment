@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from dr_environment.recipe.render import (
+from dr_environment.template.render import (
     copy_fragment_assets,
     render_base_fragment,
     render_kernel_setup_fragment,
@@ -24,7 +24,7 @@ from dr_environment.recipe.render import (
     render_versions_fragment,
     template_root,
 )
-from dr_environment.recipe.versions import _DEFAULTS
+from dr_environment.template.versions import _DEFAULTS
 
 
 def test_local_bytecode_is_not_copied_into_the_context(
@@ -33,7 +33,7 @@ def test_local_bytecode_is_not_copied_into_the_context(
     templates = tmp_path / "templates"
     (templates / "kernel" / "__pycache__").mkdir(parents=True)
     (templates / "kernel" / "__pycache__" / "render.pyc").write_bytes(b"")
-    monkeypatch.setattr("dr_environment.recipe.render.template_root", lambda: templates)
+    monkeypatch.setattr("dr_environment.template.render.template_root", lambda: templates)
 
     copy_fragment_assets(tmp_path / "ctx")
 

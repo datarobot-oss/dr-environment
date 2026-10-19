@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dr-environment"
-version = "0.1.10"
+version = "0.1.11"
 description = "Build DataRobot execution environment Docker contexts with offline dependency caches"
 readme = "README.md"
 requires-python = ">=3.11, <3.14"
@@ -52,7 +52,7 @@ packages = ["src/dr_environment"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Without uv or npm on PATH the fixture recipe skips every end-to-end test, and -ra prints
+# Without uv or npm on PATH the fixture template skips every end-to-end test, and -ra prints
 # the skip reason instead of a bare `s`.
 addopts = ["-ra"]
 
@@ -66,7 +66,7 @@ fail_under = 90
 [tool.ruff]
 line-length = 100
 indent-width = 4
-extend-exclude = ["src/dr_environment/recipe/templates"]
+extend-exclude = ["src/dr_environment/template/docker_context"]
 
 [tool.ruff.lint]
 select = [
@@ -106,4 +106,4 @@ disable_error_code = ["import-untyped"]
 ignore_missing_imports = true
 pretty = true
 show_absolute_path = true
-exclude = "src/dr_environment/recipe/templates"
+exclude = "src/dr_environment/template/docker_context"

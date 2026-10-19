@@ -21,15 +21,15 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from dr_environment.recipe.cache.stages import CACHE_COPY_PATHS
-from dr_environment.recipe.versions import parse_tool_versions, python_version
+from dr_environment.template.cache.stages import CACHE_COPY_PATHS
+from dr_environment.template.versions import parse_tool_versions, python_version
 
 # Asset directories copied into docker_context; names match Dockerfile fragment stages.
 FRAGMENT_ASSET_DIRS = ("build-deps", "kernel")
 
 
 def template_root() -> Path:
-    return Path(__file__).resolve().parent / "templates" / "docker_context"
+    return Path(__file__).resolve().parent / "docker_context"
 
 
 def copy_fragment_assets(docker_context: Path) -> None:

@@ -2,7 +2,7 @@
 
 > Contributor documentation: this describes working **on** this repo, not using the environment it builds.
 
-DataRobot CLI plugin that builds **Codespace-ready execution environment Docker contexts** for App Framework recipes (e.g. `datarobot-agent-application`). Output is a customer-buildable Wolfi image with pre-warmed **uv**, **npm**, and **Go** caches for offline use in DataRobot notebooks.
+DataRobot CLI plugin that builds **Codespace-ready execution environment Docker contexts** for application templates (e.g. `datarobot-agent-application`). Output is a customer-buildable Wolfi image with pre-warmed **uv**, **npm**, and **Go** caches for offline use in DataRobot notebooks.
 
 ## Quick commands
 
@@ -14,8 +14,8 @@ pytest
 # Plugin manifest (required for dr CLI discovery)
 dr-environment --dr-plugin-manifest
 
-# Generate docker context from a recipe
-dr environment recipe --recipe-path /path/to/datarobot-agent-application
+# Generate docker context from an application template
+dr environment template --template-path /path/to/datarobot-agent-application
 
 # Build the image (always amd64)
 cd docker_context
@@ -24,9 +24,9 @@ docker build --platform linux/amd64 -t exec-env .
 
 ## What this repo does
 
-`dr environment recipe` takes an App Framework recipe and writes a `docker_context/` directory:
+`dr environment template` takes an application template and writes a `docker_context/` directory:
 
-1. Discovers components from the recipe root `Taskfile.yml` `includes`
+1. Discovers components from the application template's root `Taskfile.yml` `includes`
 2. Validates lockfiles (fail-fast on missing/stale)
 3. Copies per-component manifests into `components/<name>/` (no dependency merging)
 4. Renders Dockerfile fragments (base → user → versions → build-deps → kernel → per-component cache stages → offline)
@@ -40,37 +40,37 @@ The generated image runs as the `notebooks` user, boots Jupyter Kernel Gateway, 
 ```
 src/dr_environment/
 ├── cli.py              # Click CLI; handles --dr-plugin-manifest before Click
-└── recipe/
+└── template/
     ├── build.py        # Orchestrates the full docker context build
-    ├── discover.py     # Parse recipe Taskfile includes → Component list
+    ├── discover.py     # Parse application template Taskfile includes → Component list
     ├── validate.py     # Lockfile checks (uv lock --check, npm ci --dry-run, go mod verify)
     ├── layout.py       # Copy manifests; strip local `core` package from pyproject.toml
     ├── hooks.py        # Run component `task environment` hooks
     ├── render.py       # Jinja templates + asset copy + Dockerfile assembly
-    ├── versions.py     # Read recipe versions.yaml; defaults for unlisted tools
+    ├── versions.py     # Read application template versions.yaml; defaults for unlisted tools
     ├── manifests.py    # Locate a component's manifest files
     ├── models.py       # Component, Ecosystem, ComponentStrategy enums
     └── cache/
         └── stages.py   # Generate per-component Dockerfile cache fragments
 
-src/dr_environment/recipe/templates/docker_context/
+src/dr_environment/template/docker_context/
 ├── 00-base.fragment.j2       # Wolfi base (digest-pinned) + CPython apk layers
 ├── 01-user.fragment.j2       # `notebooks` user, uid/gid 10101
 ├── 02-versions.fragment.j2   # uv, task, node, dr CLI, Pulumi, opencode, Agent Assist
 ├── 03-build-deps.fragment.j2 # Build-time dependency manifests
 ├── 04-kernel.fragment.j2     # Kernel venv, Jupyter assets, runtime scripts
 ├── 99-offline.fragment.j2    # cache-perms stage, offline env vars, model entrypoint
-├── kernel/requirements.txt   # Kernel-only deps (NOT recipe component deps)
+├── kernel/requirements.txt   # Kernel-only deps (NOT application template component deps)
 └── build-deps/, kernel/      # render.py:FRAGMENT_ASSET_DIRS, copied in as directories
 
-tests/                  # pytest; builds a context from tests/fixtures/recipe, no docker build
+tests/                  # pytest; builds a context from tests/fixtures/template, no docker build
 ```
 
 ## Build pipeline
 
 ```mermaid
 flowchart TD
-    A[recipe Taskfile includes] --> B[discover_components]
+    A[application template Taskfile includes] --> B[discover_components]
     B --> C[validate_all lockfiles]
     C --> D[copy_fragment_assets]
     D --> E[render base/user/versions/build-deps/kernel fragments]
@@ -113,7 +113,7 @@ Never parse or merge component `pyproject.toml` files. Each component's manifest
 
 ### Local `core` package convention
 
-Recipes symlink a shared `core/` Python package. When copying non-`core` components:
+Application templates symlink a shared `core/` Python package. When copying non-`core` components:
 
 - `layout.strip_local_shared_python_package()` removes `"core"` from dependencies and `core = { path = "core" }` from `[tool.uv.sources]`
 - Cache stages use `--no-install-package core` so the local editable package is not built during cache warm (only third-party deps are cached)
@@ -151,14 +151,14 @@ Caches live at `/opt/cache/uv`, `/opt/cache/npm`, `/opt/cache/go/`. `setup-cache
 
 ### versions.yaml integration
 
-Recipe `.datarobot/cli/versions.yaml` drives:
+The application template's `.datarobot/cli/versions.yaml` drives:
 
 - `dr` CLI version (`02-versions.fragment.j2` → `CLI_VERSION`)
 - `pulumi` version (the `versions` stage installs via `get.pulumi.com`)
 - `python` version (`00-base.fragment.j2` base image), via `python.version` (not
   `minimum-version` — see `SUPPORTED_PYTHON_VERSIONS` in `versions.py`), default `3.11`
 
-`versions.py` falls back to `_DEFAULTS` for anything a recipe does not list. The `versions` stage installs `uv` and `task` from their upstream install scripts and `node` and the `dr` CLI from release tarballs; of these tools only `git` comes from a Wolfi apk (`02-versions`; the `00-base` toolchain layer already pulls it in).
+`versions.py` falls back to `_DEFAULTS` for anything an application template does not list. The `versions` stage installs `uv` and `task` from their upstream install scripts and `node` and the `dr` CLI from release tarballs; of these tools only `git` comes from a Wolfi apk (`02-versions`; the `00-base` toolchain layer already pulls it in).
 
 ### COPY ownership in cache stages
 
@@ -169,18 +169,18 @@ Cache stage `COPY` uses `--chown=notebooks:notebooks` because cache stages build
 | Change | File(s) |
 |--------|---------|
 | CLI options / entrypoint | `src/dr_environment/cli.py` |
-| Build orchestration | `recipe/build.py` |
-| Python/npm/go cache Dockerfile lines | `recipe/cache/stages.py` |
-| Wolfi base image, apk layers | `recipe/templates/docker_context/00-base.fragment.j2` |
-| dr CLI, Pulumi, tool versions | `recipe/templates/docker_context/02-versions.fragment.j2` |
-| Kernel venv, Jupyter assets | `recipe/templates/docker_context/04-kernel.fragment.j2` |
-| Offline env, cache perms, model entrypoint | `recipe/templates/docker_context/99-offline.fragment.j2` |
-| Kernel Jupyter deps | `recipe/templates/docker_context/kernel/requirements.txt` |
-| Runtime shell scripts | `recipe/templates/docker_context/kernel/` |
-| `core` stripping logic | `recipe/layout.py` |
-| Lockfile validation rules | `recipe/validate.py` |
-| Component discovery | `recipe/discover.py` |
-| Hook env contract | `recipe/hooks.py` |
+| Build orchestration | `template/build.py` |
+| Python/npm/go cache Dockerfile lines | `template/cache/stages.py` |
+| Wolfi base image, apk layers | `template/docker_context/00-base.fragment.j2` |
+| dr CLI, Pulumi, tool versions | `template/docker_context/02-versions.fragment.j2` |
+| Kernel venv, Jupyter assets | `template/docker_context/04-kernel.fragment.j2` |
+| Offline env, cache perms, model entrypoint | `template/docker_context/99-offline.fragment.j2` |
+| Kernel Jupyter deps | `template/docker_context/kernel/requirements.txt` |
+| Runtime shell scripts | `template/docker_context/kernel/` |
+| `core` stripping logic | `template/layout.py` |
+| Lockfile validation rules | `template/validate.py` |
+| Component discovery | `template/discover.py` |
+| Hook env contract | `template/hooks.py` |
 
 ## Testing
 
@@ -190,16 +190,16 @@ pytest
 dr-environment --dr-plugin-manifest
 ```
 
-Test against a real recipe:
+Test against a real application template:
 
 ```bash
 cd /path/to/datarobot-agent-application
-uv run dr-environment recipe --recipe-path . --no-tarball
+uv run dr-environment template --template-path . --no-tarball
 ls docker_context/dockerfile.d/
 grep -E "uv sync|UV_OFFLINE" docker_context/Dockerfile
 ```
 
-CI generates a context from `tests/fixtures/recipe`, lints it with hadolint and resolves its
+CI generates a context from `tests/fixtures/template`, lints it with hadolint and resolves its
 stage graph with `docker buildx build --check`. A real `docker build` is still manual:
 `docker build --platform linux/amd64`.
 
@@ -253,7 +253,7 @@ Registered as DataRobot CLI plugin `environment`:
 ```bash
 uv tool install .
 dr plugin list          # should show environment
-dr environment recipe --recipe-path .
+dr environment template --template-path .
 ```
 
 Manifest is emitted via `dr-environment --dr-plugin-manifest` (handled in `cli.main()` before Click parses args).

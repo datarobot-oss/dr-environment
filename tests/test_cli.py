@@ -40,12 +40,12 @@ def test_plugin_manifest_matches_the_dr_cli_contract(
     }
 
 
-def test_recipe_command_writes_the_context_and_the_archive(
-    recipe: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_template_command_writes_the_context_and_the_archive(
+    template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    result = CliRunner().invoke(cli, ["recipe", "--recipe-path", str(recipe)])
+    result = CliRunner().invoke(cli, ["template", "--template-path", str(template)])
 
     assert result.exit_code == 0, result.output
     assert "Built docker context:" in result.output
@@ -54,8 +54,8 @@ def test_recipe_command_writes_the_context_and_the_archive(
     assert Path("docker_context.tar.gz").is_file()
 
 
-def test_recipe_command_skips_the_archive_when_asked(
-    recipe: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_template_command_skips_the_archive_when_asked(
+    template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The reported path used to be gated on the file existing rather than on the flag.
 
@@ -67,20 +67,20 @@ def test_recipe_command_skips_the_archive_when_asked(
     archive = Path("docker_context.tar.gz")
     archive.write_bytes(b"sentinel")
 
-    result = CliRunner().invoke(cli, ["recipe", "--recipe-path", str(recipe), "--no-tarball"])
+    result = CliRunner().invoke(cli, ["template", "--template-path", str(template), "--no-tarball"])
 
     assert result.exit_code == 0, result.output
     assert "Archive:" not in result.output
     assert archive.read_bytes() == b"sentinel", "--no-tarball still wrote an archive"
 
 
-def test_recipe_command_python_version_overrides_versions_yaml(
-    recipe: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_template_command_python_version_overrides_versions_yaml(
+    template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
     result = CliRunner().invoke(
-        cli, ["recipe", "--recipe-path", str(recipe), "--python-version", "3.13"]
+        cli, ["template", "--template-path", str(template), "--python-version", "3.13"]
     )
 
     assert result.exit_code == 0, result.output
@@ -88,24 +88,26 @@ def test_recipe_command_python_version_overrides_versions_yaml(
     assert "ARG PYTHON_VERSION=3.13" in fragment
 
 
-def test_recipe_command_rejects_an_unsupported_python_version(
-    recipe: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_template_command_rejects_an_unsupported_python_version(
+    template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
     result = CliRunner().invoke(
-        cli, ["recipe", "--recipe-path", str(recipe), "--python-version", "3.9"]
+        cli, ["template", "--template-path", str(template), "--python-version", "3.9"]
     )
 
     assert result.exit_code != 0
     assert "3.9" in result.output
 
 
-def test_a_recipe_without_a_taskfile_exits_nonzero_with_a_readable_error(
+def test_a_template_without_a_taskfile_exits_nonzero_with_a_readable_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("sys.argv", ["dr-environment", "recipe", "--recipe-path", str(tmp_path)])
+    monkeypatch.setattr(
+        "sys.argv", ["dr-environment", "template", "--template-path", str(tmp_path)]
+    )
 
     with pytest.raises(SystemExit) as exit_info:
         main()
