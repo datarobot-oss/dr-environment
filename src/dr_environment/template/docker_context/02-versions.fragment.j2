@@ -57,7 +57,7 @@ ENV HOME=/home/notebooks \
 # versions.yaml — uv ({{ uv_version }})
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_VERSION="{{ uv_version }}" sh
 
-# copier (>= {{ copier_version }}; default when not listed in the template). versions.yaml states a
+# copier (>= {{ copier_version }}; default when not listed in the application template). versions.yaml states a
 # floor, so install the newest release above it; an exact pin can name a broken release.
 RUN uv tool install "copier>={{ copier_version }}"
 
@@ -82,7 +82,7 @@ RUN venv=/tmp/copier-wheelhouse-warm \
     && "$venv/bin/python" -m pip download --only-binary=:all: "copier>={{ copier_version }}" --dest /opt/wheelhouse \
     && rm -rf "$venv"
 
-# datarobot ({{ datarobot_version }}; default when not listed in the template)
+# datarobot ({{ datarobot_version }}; default when not listed in the application template)
 RUN uv tool install --force "datarobot[core]>={{ datarobot_version }}"
 
 # versions.yaml — task ({{ task_version }})
@@ -127,7 +127,7 @@ RUN pulumi login --local
 RUN pulumi plugin install resource datarobot "$PULUMI_DATAROBOT_VERSION" \
     --server github://api.github.com/datarobot-community/pulumi-datarobot
 
-# versions.yaml — pulumi-command provider ({{ pulumi_command_version }}; default when not listed in the template)
+# versions.yaml — pulumi-command provider ({{ pulumi_command_version }}; default when not listed in the application template)
 RUN pulumi plugin install resource command "$PULUMI_COMMAND_VERSION"
 
 # versions.yaml — opencode ({{ opencode_version }})

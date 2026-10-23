@@ -135,7 +135,7 @@ With `--no-install-package core` for non-core components. Do **not** use `uv pip
 
 ### Platform: always linux/amd64
 
-DataRobot notebook kernels run on **linux/amd64**. The base template builds `FROM --platform=${TARGETPLATFORM}`, which `render.py` sets to `linux/amd64`. Users on Apple Silicon must pass `--platform linux/amd64` when building. An arm64 image fails with `exec format error` on `start_server.sh`.
+DataRobot notebook kernels run on **linux/amd64**. The `00-base` fragment builds `FROM --platform=${TARGETPLATFORM}`, which `render.py` sets to `linux/amd64`. Users on Apple Silicon must pass `--platform linux/amd64` when building. An arm64 image fails with `exec format error` on `start_server.sh`.
 
 ### Offline runtime
 

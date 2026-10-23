@@ -28,23 +28,19 @@ from dr_environment.template.versions import parse_tool_versions, python_version
 FRAGMENT_ASSET_DIRS = ("build-deps", "kernel")
 
 
-def template_root() -> Path:
+def docker_context_root() -> Path:
     return Path(__file__).resolve().parent / "docker_context"
 
 
 def copy_fragment_assets(docker_context: Path) -> None:
     """Copy per-fragment asset trees into the generated docker context."""
-    root = template_root()
+    root = docker_context_root()
     for name in FRAGMENT_ASSET_DIRS:
         src = root / name
         if not src.is_dir():
             continue
         # Byte-code left behind by a local lint run must not be baked into the image.
         shutil.copytree(src, docker_context / name, ignore=shutil.ignore_patterns("__pycache__"))
-
-
-# Backward-compatible alias for tests and callers.
-copy_static_template = copy_fragment_assets
 
 
 def render_base_fragment(docker_context: Path, versions: dict) -> None:
@@ -118,7 +114,7 @@ def render_offline_fragment(docker_context: Path, *, cache_stage: str | None) ->
 
 def _jinja_env() -> Environment:
     return Environment(
-        loader=FileSystemLoader(str(template_root())),
+        loader=FileSystemLoader(str(docker_context_root())),
         autoescape=select_autoescape(enabled_extensions=()),
         keep_trailing_newline=True,
     )

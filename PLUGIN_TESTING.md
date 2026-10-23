@@ -7,7 +7,7 @@ Most of what follows is now automated. `uv run pytest` builds a context from
 the hook contract; CI additionally lints the generated Dockerfile with hadolint and resolves
 its stage graph with `docker buildx build --check`. Run the steps below when changing the
 Jinja templates, or to check something the suite does not reach: a real `docker build`, an image
-that runs with no network, and an application template with npm or Go components. The fixture is
+that runs with no network, and an application template with Go components. The fixture is
 locked with `uv` and `npm` once per session; without either on PATH those tests skip, naming
 the missing tool.
 

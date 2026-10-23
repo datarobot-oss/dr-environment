@@ -26,9 +26,9 @@ from pathlib import Path
 
 import pytest
 
-from dr_environment.template.render import template_root
+from dr_environment.template.render import docker_context_root
 
-ENTRYPOINT = template_root() / "kernel" / "start_server_custom_model.sh"
+ENTRYPOINT = docker_context_root() / "kernel" / "start_server_custom_model.sh"
 
 STUBS = {
     # `uv venv` has to leave behind the activate script the entrypoint sources next.
