@@ -7,5 +7,5 @@
 # the pip package itself must be present in the cache when UV_OFFLINE=1.
 hatchling==1.32.4
 editables==0.6
-setuptools==84.0.0
+setuptools==84.2.1
 pip==26.2.1
