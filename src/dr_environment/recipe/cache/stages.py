@@ -46,6 +46,9 @@ CACHE_COPY_PATHS = (
 )
 
 #: The cache dirs each ecosystem's stage writes, so the offline stage copies only those.
+#: NPM/Go omit UV_CACHE: they do not fill it. The offline stage still inherits the kernel's
+#: tools cache (versions/build-deps) via `FROM kernel`, and when no stage copies UV_CACHE
+#: it runs the recursive chmod that Python/hook stages otherwise do in-place.
 _ECOSYSTEM_PATHS = {
     Ecosystem.PYTHON: (UV_CACHE, WHEELHOUSE),
     Ecosystem.NPM: (NPM_CACHE,),
@@ -53,9 +56,10 @@ _ECOSYSTEM_PATHS = {
 }
 
 # The deployed model runs as uid 1000, not `notebooks`, and opens uv cache files for
-# writing at startup, so they must be writable by any uid. Each stage makes the files it
-# wrote world-writable itself: a chmod over the merged cache would copy all of it into a
-# new layer, and `COPY --chmod` needs BuildKit.
+# writing at startup, so they must be writable by any uid. Python and hook stages make
+# the files they wrote world-writable themselves: a chmod over the merged cache would
+# copy all of it into a new layer, and `COPY --chmod` needs BuildKit. NPM/Go stages do
+# not touch the uv cache; see 99-offline.fragment.j2 for the npm/go-only fallback.
 _UV_CACHE_CHMOD = f"chmod -R a+rwX {UV_CACHE}"
 
 _STAGE_DEF = re.compile(r"^FROM\s+(?:--\S+\s+)*\S+\s+AS\s+(\S+)\s*$", re.MULTILINE | re.I)

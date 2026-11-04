@@ -100,7 +100,7 @@ wolfi_python_dev → base → user → versions → build-deps → kernel
   offline is FROM kernel + COPY --from=cache-<each component> of its cache dirs
 ```
 
-Each cache stage starts `FROM kernel` and makes its own files world-writable in the RUN that wrote them, so no stage depends on another and there is no separate chmod pass over the merged cache. `99-offline` merges the stages' cache dirs with one `COPY --from` per stage and path (COPY into an existing dir merges), then resets `/opt/cache/uv` itself to `0777`, because COPY creates the top-level dir `0755`.
+Each cache stage starts `FROM kernel`. Python and hook stages make their uv files world-writable in the RUN that wrote them, so no stage depends on another and there is no separate chmod pass over a merged multi-GB cache. `99-offline` merges the stages' cache dirs with one `COPY --from` per stage and path (COPY into an existing dir merges), then resets `/opt/cache/uv` itself to `0777` when a stage copied it (COPY creates the top-level dir `0755`). npm/go stages do not copy `/opt/cache/uv`; for those recipes `99-offline` runs `chmod -R a+rwX` on the kernel tools cache the image still inherits, so the uid-1000 model can write it.
 
 Fragments are named `{component.fragment_order:02d}-cache-{name}.fragment` and concatenated in sorted order between `04-kernel` and `99-offline`.
 

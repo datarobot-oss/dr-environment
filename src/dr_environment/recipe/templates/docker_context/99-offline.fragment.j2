@@ -16,9 +16,10 @@ limitations under the License.
 # Post-cache runtime and offline notebook environment.
 # Cache stages are throwaway intermediates; only warmed cache dirs are copied into the image.
 # Each cache stage builds FROM kernel on its own, so this merges them: a later COPY into the
-# same dir adds to it. Every stage already made its uv files writable by any uid (the
+# same dir adds to it. Python/hook stages make their uv files writable by any uid (the
 # deployed model runs as uid 1000 and opens them for writing), and the copies keep those
-# nested modes.
+# nested modes. NPM/Go-only recipes never copy UV_CACHE; the recursive chmod below covers
+# the kernel tools cache those images still inherit.
 FROM kernel AS offline
 
 ARG GIT_COMMIT
@@ -34,10 +35,18 @@ USER root
 COPY --from={{ stage.name }} --chown=notebooks:notebooks {{ cache_path }} {{ cache_path }}
 {% endfor %}
 {% endfor %}
+{% if uv_cache_copied %}
 # Classic `COPY --from` resets the copied top-level dir to 0755 (nested modes are kept), so
 # restore 0777 on the cache root — one inode — letting the uid-1000 model create its lock
-# and temp files there.
+# and temp files there. Nested modes were set in the Python/hook stage that filled the cache.
 RUN chmod 0777 {{ uv_cache }}
+{% else %}
+# No stage copied UV_CACHE (npm/go-only recipe). The image still inherits the kernel's
+# tools uv cache from versions/build-deps; make those files world-writable for uid 1000 —
+# the same guarantee the old cache-perms stage provided whenever any cache stage existed.
+# Recursive, but only the small tools cache, not a multi-GB component warm.
+RUN chmod -R a+rwX {{ uv_cache }}
+{% endif %}
 {% endif %}
 
 # Custom-model host capability. DataRobot builds each deployed model FROM this image and

@@ -93,12 +93,15 @@ def test_go_cache_fragment_downloads_modules_into_the_shared_cache(tmp_path: Pat
 
     stage = write_component_cache_fragment(component, docker_context)
 
+    # UV_CACHE is omitted on purpose: this stage does not fill it. The offline stage
+    # inherits the kernel tools cache and chmods it when no stage copies UV_CACHE.
     assert stage == CacheStage("cache-gateway", ("/opt/cache/go",))
     content = (docker_context / "dockerfile.d" / "12-cache-gateway.fragment").read_text()
     assert content.startswith("FROM kernel AS cache-gateway")
     assert "ENV GOMODCACHE=/opt/cache/go/pkg/mod GOCACHE=/opt/cache/go/build" in content
     # `all` rather than the default, so the offline image can serve test and tool imports too.
     assert "RUN go mod download all" in content
+    assert "chmod" not in content
 
 
 def test_npm_cache_fragment_installs_dev_dependencies_into_the_shared_cache(
@@ -109,6 +112,8 @@ def test_npm_cache_fragment_installs_dev_dependencies_into_the_shared_cache(
 
     stage = write_component_cache_fragment(component, docker_context)
 
+    # UV_CACHE is omitted on purpose: this stage does not fill it. The offline stage
+    # inherits the kernel tools cache and chmods it when no stage copies UV_CACHE.
     assert stage == CacheStage("cache-frontend", ("/opt/cache/npm",))
     content = (docker_context / "dockerfile.d" / "12-cache-frontend.fragment").read_text()
     assert content.startswith("FROM kernel AS cache-frontend")
@@ -116,6 +121,7 @@ def test_npm_cache_fragment_installs_dev_dependencies_into_the_shared_cache(
     # `--include=dev` is what puts the build tooling in the cache. Without it an offline
     # frontend build has no devDependencies to install from.
     assert "RUN npm ci --include=dev --cache /opt/cache/npm" in content
+    assert "chmod" not in content
 
 
 def test_every_cache_stage_builds_from_kernel_so_they_run_in_parallel(tmp_path: Path) -> None:

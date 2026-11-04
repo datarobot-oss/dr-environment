@@ -112,6 +112,9 @@ def render_offline_fragment(docker_context: Path, *, cache_stages: Sequence[Cach
     content = template.render(
         cache_stages=cache_stages,
         uv_cache=UV_CACHE,
+        # Python/hook stages copy UV_CACHE with nested modes already world-writable;
+        # npm/go-only recipes do not, so the template falls back to a recursive chmod.
+        uv_cache_copied=any(UV_CACHE in stage.paths for stage in cache_stages),
     )
     dockerfile_d = docker_context / "dockerfile.d"
     (dockerfile_d / "99-offline.fragment").write_text(content, encoding="utf-8")

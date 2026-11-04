@@ -143,9 +143,9 @@ def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) 
         "COPY --from=cache-frontend --chown=notebooks:notebooks /opt/cache/npm /opt/cache/npm",
     ]
     # The cache and venv modes govern whether a deployed model (a different uid) can write to
-    # them, so assert them: a wrong mode here breaks every generated image. The nested uv
-    # files are made writable in the cache stages, so no recursive chmod (and no cache-perms
-    # stage, which copied the whole cache) belongs here.
+    # them, so assert them: a wrong mode here breaks every generated image. A Python stage
+    # already made nested uv files writable, so only the COPY-reset top-level dir is fixed
+    # here — no recursive chmod (and no cache-perms stage, which copied the whole cache).
     assert "chmod -R" not in content
     assert "cache-perms" not in content
     assert "RUN chmod 0777 /opt/cache/uv" in content
@@ -153,6 +153,29 @@ def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) 
     # The air-gap settings are pinned against the assembled Dockerfile, not here.
     assert "NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES=1" in content
     assert "DEEPEVAL_HOME=/tmp/.deepeval" in content
+
+
+def test_render_offline_fragment_npm_only_makes_kernel_uv_cache_world_writable(
+    tmp_path: Path,
+) -> None:
+    """npm/go stages do not copy UV_CACHE; the offline stage must still chmod the kernel
+    tools cache the image inherits, or the uid-1000 model cannot write it.
+    """
+    docker_context = tmp_path / "ctx"
+    (docker_context / "dockerfile.d").mkdir(parents=True)
+
+    render_offline_fragment(
+        docker_context,
+        cache_stages=[CacheStage("cache-frontend", ("/opt/cache/npm",))],
+    )
+
+    content = (docker_context / "dockerfile.d" / "99-offline.fragment").read_text()
+    copies = [line for line in content.splitlines() if line.startswith("COPY --from=")]
+    assert copies == [
+        "COPY --from=cache-frontend --chown=notebooks:notebooks /opt/cache/npm /opt/cache/npm",
+    ]
+    assert "RUN chmod -R a+rwX /opt/cache/uv" in content
+    assert "RUN chmod 0777 /opt/cache/uv" not in content
 
 
 def test_render_offline_fragment_without_cache_stages(tmp_path: Path) -> None:
