@@ -22,7 +22,7 @@ from pathlib import Path
 
 import yaml
 
-from dr_environment.recipe.cache.stages import write_component_cache_fragments
+from dr_environment.recipe.cache.stages import CacheStage, write_component_cache_fragments
 from dr_environment.recipe.discover import discover_components
 from dr_environment.recipe.hooks import run_environment_hook
 from dr_environment.recipe.layout import layout_components
@@ -90,17 +90,23 @@ def build(
     render_build_deps_fragment(docker_context)
     render_kernel_setup_fragment(docker_context)
 
+    stages: dict[str, CacheStage] = {}
     for component in components:
         if component.strategy == ComponentStrategy.HOOK:
-            run_environment_hook(component, docker_context)
+            stages[component.name] = run_environment_hook(component, docker_context)
         elif component.strategy == ComponentStrategy.DEFAULT:
             inspect_component(component)
             layout_components([component], docker_context)
 
     active = [c for c in components if c.strategy == ComponentStrategy.DEFAULT and c.manifests]
-    cache_stage = write_component_cache_fragments(active, docker_context)
+    for component, stage in zip(
+        active, write_component_cache_fragments(active, docker_context), strict=True
+    ):
+        stages[component.name] = stage
 
-    render_offline_fragment(docker_context, cache_stage=cache_stage)
+    render_offline_fragment(
+        docker_context, cache_stages=[stages[c.name] for c in components if c.name in stages]
+    )
     assemble_dockerfile(docker_context)
 
     if tarball:
