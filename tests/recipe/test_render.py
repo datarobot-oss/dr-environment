@@ -51,6 +51,21 @@ def test_render_kernel_fragment_drops_kernel_drdev_shim(tmp_path: Path) -> None:
     assert 'rm -f "${VENV_PATH}/bin/drdev"' in content
 
 
+def test_render_kernel_fragment_does_not_chown_the_venv(tmp_path: Path) -> None:
+    """Re-owning the venv would copy all of it into a new layer; it is installed as notebooks."""
+    docker_context = tmp_path / "ctx"
+    (docker_context / "dockerfile.d").mkdir(parents=True)
+
+    render_kernel_setup_fragment(docker_context)
+
+    content = (docker_context / "dockerfile.d" / "04-kernel.fragment").read_text()
+    commands = [line for line in content.splitlines() if not line.startswith("#")]
+    assert not any("chown -R" in line for line in commands)
+    install = content.index("uv pip install")
+    assert content.rindex("USER ", 0, install) == content.index("USER $UNAME\nRUN uv venv")
+    assert "! -user $UNAME" in content
+
+
 def test_kernel_datarobot_pin_matches_versions_default() -> None:
     """The kernel venv pin must not fall below the floor the image installs the SDK from."""
     reqs = template_root() / "kernel" / "requirements.txt"
