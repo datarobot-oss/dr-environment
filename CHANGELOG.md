@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.11
+- Build the component cache stages in parallel: each now starts `FROM kernel` instead of from the previous component's stage, and the offline stage copies the cache dirs out of each one.
+- Drop the `cache-perms` stage. Python and hook cache stages make the uv cache world-writable in the same RUN that fills it, so the image no longer carries a second full copy of the cache in a chmod layer. npm/go-only recipes still get a recursive chmod in the offline stage on the inherited kernel tools cache, so the uid-1000 model can write it.
+- Component hooks: `DOCKERFILE_FRAGMENT` is now pre-filled with `FROM kernel AS cache-<name>`, so hook instructions run in their own stage rather than extending the previous component's.
+- Install the kernel venv as `notebooks` and only re-own the files that are not already `notebooks`'s, instead of a `chown -R` over the kernel workdir that copied the whole venv into a second layer.
+
 ## 0.1.10
 - Fix the image build when a component excludes `pip` in its `[tool.uv]`: the wheelhouse step's `uv pip install pip` honoured the exclusion and installed nothing.
 

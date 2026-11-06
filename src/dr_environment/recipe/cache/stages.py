@@ -16,6 +16,9 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from dr_environment.recipe.layout import LOCAL_SHARED_PACKAGE
@@ -34,7 +37,7 @@ GO_CACHE_ROOT = "/opt/cache/go"
 # honours find-links, so the offline stage points UV_FIND_LINKS here (see _python_cache_lines).
 WHEELHOUSE = "/opt/wheelhouse"
 
-# Paths copied from the final cache stage into the offline runtime image.
+# Every cache dir the offline runtime image can copy out of a cache stage.
 CACHE_COPY_PATHS = (
     UV_CACHE,
     NPM_CACHE,
@@ -42,18 +45,56 @@ CACHE_COPY_PATHS = (
     WHEELHOUSE,
 )
 
+#: The cache dirs each ecosystem's stage writes, so the offline stage copies only those.
+#: NPM/Go omit UV_CACHE: they do not fill it. The offline stage still inherits the kernel's
+#: tools cache (versions/build-deps) via `FROM kernel`, and when no stage copies UV_CACHE
+#: it runs the recursive chmod that Python/hook stages otherwise do in-place.
+_ECOSYSTEM_PATHS = {
+    Ecosystem.PYTHON: (UV_CACHE, WHEELHOUSE),
+    Ecosystem.NPM: (NPM_CACHE,),
+    Ecosystem.GO: (GO_CACHE_ROOT,),
+}
 
-def write_component_cache_fragment(
-    component: Component,
-    docker_context: Path,
-    *,
-    previous_stage: str,
-) -> str:
-    """Write cache fragment for component; return new stage name."""
-    stage_name = f"cache-{component.name}"
-    lines: list[str] = [f"FROM {previous_stage} AS {stage_name}"]
+# The deployed model runs as uid 1000, not `notebooks`, and opens uv cache files for
+# writing at startup, so they must be writable by any uid. Python and hook stages make
+# the files they wrote world-writable themselves: a chmod over the merged cache would
+# copy all of it into a new layer, and `COPY --chmod` needs BuildKit. NPM/Go stages do
+# not touch the uv cache; see 99-offline.fragment.j2 for the npm/go-only fallback.
+_UV_CACHE_CHMOD = f"chmod -R a+rwX {UV_CACHE}"
+
+_STAGE_DEF = re.compile(r"^FROM\s+(?:--\S+\s+)*\S+\s+AS\s+(\S+)\s*$", re.MULTILINE | re.I)
+
+
+@dataclass(frozen=True)
+class CacheStage:
+    """A cache stage and the cache dirs the offline stage copies out of it."""
+
+    name: str
+    paths: tuple[str, ...]
+
+
+def stage_name(component_name: str) -> str:
+    return f"cache-{component_name}"
+
+
+def _ordered(paths: set[str]) -> tuple[str, ...]:
+    return tuple(path for path in CACHE_COPY_PATHS if path in paths)
+
+
+def write_component_cache_fragment(component: Component, docker_context: Path) -> CacheStage:
+    """Write the cache fragment for *component*; return its stage.
+
+    Every cache stage builds `FROM kernel` rather than from the previous one, so BuildKit
+    warms the components in parallel and a change to one component's lockfile rebuilds
+    only that component's stage. The offline stage merges them by copying each stage's
+    cache dirs in turn.
+    """
+    name = stage_name(component.name)
+    lines: list[str] = [f"FROM {PREVIOUS_STAGE} AS {name}"]
+    paths: set[str] = set()
 
     for info in component.manifests:
+        paths.update(_ECOSYSTEM_PATHS[info.ecosystem])
         if info.ecosystem == Ecosystem.PYTHON:
             lines.extend(_python_cache_lines(component.name))
         elif info.ecosystem == Ecosystem.NPM:
@@ -68,24 +109,42 @@ def write_component_cache_fragment(
     )
     fragment_path.parent.mkdir(parents=True, exist_ok=True)
     fragment_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return stage_name
+    return CacheStage(name, _ordered(paths))
 
 
 def write_component_cache_fragments(
-    components: list[Component],
+    components: Sequence[Component],
     docker_context: Path,
-) -> str | None:
-    """Write all default component cache fragments; return final cache stage name."""
-    previous = PREVIOUS_STAGE
-    wrote = False
-    for component in components:
-        if not component.manifests:
-            continue
-        wrote = True
-        previous = write_component_cache_fragment(
-            component, docker_context, previous_stage=previous
-        )
-    return previous if wrote else None
+) -> list[CacheStage]:
+    """Write all default component cache fragments; return their stages in order."""
+    return [
+        write_component_cache_fragment(component, docker_context)
+        for component in components
+        if component.manifests
+    ]
+
+
+def hook_fragment_header(component_name: str) -> str:
+    """Return the first line of a hook's fragment, giving its instructions their own stage."""
+    return f"FROM {PREVIOUS_STAGE} AS {stage_name(component_name)}\n"
+
+
+def finish_hook_fragment(fragment_path: Path, component_name: str) -> CacheStage:
+    """Close the fragment a hook wrote; return the stage to copy its caches out of.
+
+    That is the last stage the fragment defines: the one it was given, unless the hook
+    opened its own. A hook may write any cache, so all cache dirs are copied, and its uv
+    files are made world-writable here because the hook's instructions do not do it.
+    """
+    content = fragment_path.read_text(encoding="utf-8")
+    stages = _STAGE_DEF.findall(content)
+    name = stages[-1] if stages else stage_name(component_name)
+    if not content.endswith("\n"):
+        content += "\n"
+    # As root: a hook may leave root-owned files in the cache.
+    content += f"USER root\nRUN {_UV_CACHE_CHMOD}\n"
+    fragment_path.write_text(content, encoding="utf-8")
+    return CacheStage(name, CACHE_COPY_PATHS)
 
 
 def _copy_component_tree(component_name: str) -> str:
@@ -131,7 +190,9 @@ def _python_cache_lines(component_name: str) -> list[str]:
         f"        -o {wheelhouse_req} \\",
         f"    && {warm_venv}/bin/python -m pip download --no-deps --no-cache-dir \\",
         f"        -r {wheelhouse_req} --dest {WHEELHOUSE} \\",
-        f"    && rm -rf {warm_venv} {wheelhouse_req}",
+        f"    && rm -rf {warm_venv} {wheelhouse_req} \\",
+        # Same RUN, so only the files this stage wrote are touched (see _UV_CACHE_CHMOD).
+        f"    && {_UV_CACHE_CHMOD}",
     ]
 
 

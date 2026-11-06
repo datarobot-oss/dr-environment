@@ -59,7 +59,7 @@ src/dr_environment/recipe/templates/docker_context/
 ├── 02-versions.fragment.j2   # uv, task, node, dr CLI, Pulumi, opencode, Agent Assist
 ├── 03-build-deps.fragment.j2 # Build-time dependency manifests
 ├── 04-kernel.fragment.j2     # Kernel venv, Jupyter assets, runtime scripts
-├── 99-offline.fragment.j2    # cache-perms stage, offline env vars, model entrypoint
+├── 99-offline.fragment.j2    # merges cache stages, offline env vars, model entrypoint
 ├── kernel/requirements.txt   # Kernel-only deps (NOT recipe component deps)
 └── build-deps/, kernel/      # render.py:FRAGMENT_ASSET_DIRS, copied in as directories
 
@@ -95,8 +95,12 @@ flowchart TD
 
 ```
 wolfi_python_dev → base → user → versions → build-deps → kernel
-  → cache-<component1> → … → cache-perms;  offline is FROM kernel + COPY --from=cache-perms
+  kernel → cache-<component1>
+  kernel → cache-<component2>   (independent, so BuildKit builds them in parallel)
+  offline is FROM kernel + COPY --from=cache-<each component> of its cache dirs
 ```
+
+Each cache stage starts `FROM kernel`. Python and hook stages make their uv files world-writable in the RUN that wrote them, so no stage depends on another and there is no separate chmod pass over a merged multi-GB cache. `99-offline` merges the stages' cache dirs with one `COPY --from` per stage and path (COPY into an existing dir merges), then resets `/opt/cache/uv` itself to `0777` when a stage copied it (COPY creates the top-level dir `0755`). npm/go stages do not copy `/opt/cache/uv`; for those recipes `99-offline` runs `chmod -R a+rwX` on the kernel tools cache the image still inherits, so the uid-1000 model can write it.
 
 Fragments are named `{component.fragment_order:02d}-cache-{name}.fragment` and concatenated in sorted order between `04-kernel` and `99-offline`.
 
@@ -223,10 +227,10 @@ When a component Taskfile defines `environment`, `hooks.py` runs `task environme
 | `DOCKER_CONTEXT` | Output docker context path |
 | `COMPONENT_DIR` | Source component directory |
 | `COMPONENT_NAME` | Component name |
-| `DOCKERFILE_FRAGMENT` | Path to append cache stage fragment |
+| `DOCKERFILE_FRAGMENT` | Path to append cache stage fragment; pre-filled with `FROM kernel AS cache-<name>` |
 | `COMPONENT_DEST` | `components/<name>/` in docker context |
 
-The hook is responsible for copying files and appending its Dockerfile fragment.
+The hook is responsible for copying files and appending its Dockerfile fragment. The fragment starts as `FROM kernel AS cache-<name>`, so the hook's instructions run in their own stage, in parallel with the others. A hook may add its own `FROM … AS <stage>` lines; the offline stage copies the cache dirs out of the last stage the fragment defines, after `dr environment recipe` appends a `chmod` of the uv cache to it.
 
 ## Reference implementations
 

@@ -129,27 +129,19 @@ def test_only_manifest_bearing_components_are_laid_out(context: Path) -> None:
     assert not (context / "components" / "common").exists()
 
 
-def test_component_cache_stages_chain_and_the_offline_stage_copies_from_the_last(
+def test_component_cache_stages_build_from_kernel_and_the_offline_stage_copies_each(
     dockerfile: str,
 ) -> None:
-    """A broken chain drops earlier components' caches out of the image, which only shows up
+    """The stages are independent, so BuildKit warms them in parallel. A stage the offline
+    stage does not copy drops that component's cache out of the image, which only shows up
     as a missing package at deploy time.
     """
-    chain = re.findall(r"^FROM\s+(\S+)\s+AS\s+(cache-\S+)\s*$", dockerfile, re.MULTILINE | re.I)
-    assert chain == [
-        ("kernel", "cache-agent_app"),
-        ("cache-agent_app", "cache-frontend"),
-        ("cache-frontend", "cache-perms"),
-    ]
+    stages = re.findall(r"^FROM\s+(\S+)\s+AS\s+(cache-\S+)\s*$", dockerfile, re.MULTILINE | re.I)
+    assert stages == [("kernel", "cache-agent_app"), ("kernel", "cache-frontend")]
     # The scan covers only the offline stage, since a legal `--from=` in an earlier fragment
     # is not this test's business and would be blamed on the offline stage.
     refs = set(_STAGE_REF.findall(dockerfile.split("AS offline", 1)[1]))
-    component_stages = [stage for _, stage in chain if stage != "cache-perms"]
-    assert "cache-perms" in refs
-    assert refs <= {"cache-perms", component_stages[-1]}, (
-        f"the offline stage copies from {refs - {'cache-perms', component_stages[-1]}}, "
-        "which is not the end of the cache chain"
-    )
+    assert refs == {"cache-agent_app", "cache-frontend"}
 
 
 def test_recipe_versions_file_overrides_the_built_in_defaults(context: Path) -> None:
@@ -235,12 +227,12 @@ def test_build_runs_a_component_environment_hook_and_assembles_its_fragment(
     dockerfile = _instructions((context / "Dockerfile").read_text(encoding="utf-8"))
     assert "RUN echo hooked" in dockerfile
 
-    # The stage the instructions landed in has to be the one the caches are copied out of,
+    # The stage the instructions landed in has to be one the caches are copied out of,
     # or whatever the hook warmed is discarded.
     hook_stage = _STAGE_DEF.findall(dockerfile.split("RUN echo hooked")[0])[-1]
-    perms = re.search(r"^FROM\s+(\S+)\s+AS\s+cache-perms", dockerfile, re.MULTILINE | re.I)
-    assert perms is not None
-    assert hook_stage == perms.group(1), (
+    assert hook_stage == "cache-custom", "the hook's instructions need a stage of their own"
+    refs = set(_STAGE_REF.findall(dockerfile.split("AS offline", 1)[1]))
+    assert hook_stage in refs, (
         f"the hook's instructions landed in {hook_stage}, but the caches are copied out of "
-        f"{perms.group(1)}"
+        f"{sorted(refs)}"
     )
