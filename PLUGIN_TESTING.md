@@ -29,7 +29,7 @@ Expected manifest, where `version` is whatever `pyproject.toml` declares:
 }
 ```
 
-## Template against a local checkout
+## Run `template` against a local checkout
 
 ```bash
 cd /path/to/datarobot-agent-application

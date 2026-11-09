@@ -25,6 +25,7 @@ import pytest
 import yaml
 
 from dr_environment.template.build import build, create_tarball
+from dr_environment.template.render import docker_context_root
 from dr_environment.template.validate import ValidationError
 
 # Every way one instruction can name an earlier stage: `COPY|ADD --from=`, `RUN --mount=,from=`.
@@ -154,9 +155,11 @@ def test_template_versions_file_overrides_the_built_in_defaults(context: Path) -
 
 def test_the_context_never_uses_the_retired_term(context: Path) -> None:
     """Users know the input only as an application template, so the retired term must not ship."""
+    # Also the packaged sources, since the fixture leaves some fragment branches unrendered.
     hits = [
-        str(path.relative_to(context))
-        for path in context.rglob("*")
+        str(path)
+        for root in (context, docker_context_root())
+        for path in root.rglob("*")
         if path.is_file() and b"recipe" in path.read_bytes().lower()
     ]
 

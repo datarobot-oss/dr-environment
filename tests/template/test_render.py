@@ -31,10 +31,10 @@ from dr_environment.template.versions import _DEFAULTS
 def test_local_bytecode_is_not_copied_into_the_context(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    templates = tmp_path / "templates"
-    (templates / "kernel" / "__pycache__").mkdir(parents=True)
-    (templates / "kernel" / "__pycache__" / "render.pyc").write_bytes(b"")
-    monkeypatch.setattr("dr_environment.template.render.docker_context_root", lambda: templates)
+    assets = tmp_path / "assets"
+    (assets / "kernel" / "__pycache__").mkdir(parents=True)
+    (assets / "kernel" / "__pycache__" / "render.pyc").write_bytes(b"")
+    monkeypatch.setattr("dr_environment.template.render.docker_context_root", lambda: assets)
 
     copy_fragment_assets(tmp_path / "ctx")
 
