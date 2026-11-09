@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from dr_environment.template.cache.stages import CacheStage
 from dr_environment.template.render import (
     copy_fragment_assets,
     docker_context_root,
@@ -48,6 +49,21 @@ def test_render_kernel_fragment_drops_kernel_drdev_shim(tmp_path: Path) -> None:
 
     content = (docker_context / "dockerfile.d" / "04-kernel.fragment").read_text()
     assert 'rm -f "${VENV_PATH}/bin/drdev"' in content
+
+
+def test_render_kernel_fragment_does_not_chown_the_venv(tmp_path: Path) -> None:
+    """Re-owning the venv would copy all of it into a new layer; it is installed as notebooks."""
+    docker_context = tmp_path / "ctx"
+    (docker_context / "dockerfile.d").mkdir(parents=True)
+
+    render_kernel_setup_fragment(docker_context)
+
+    content = (docker_context / "dockerfile.d" / "04-kernel.fragment").read_text()
+    commands = [line for line in content.splitlines() if not line.startswith("#")]
+    assert not any("chown -R" in line for line in commands)
+    install = content.index("uv pip install")
+    assert content.rindex("USER ", 0, install) == content.index("USER $UNAME\nRUN uv venv")
+    assert "! -user $UNAME" in content
 
 
 def test_kernel_datarobot_pin_matches_versions_default() -> None:
@@ -123,41 +139,65 @@ def test_render_offline_fragment_copies_caches_from_cache_stage(tmp_path: Path) 
     docker_context = tmp_path / "ctx"
     (docker_context / "dockerfile.d").mkdir(parents=True)
 
-    render_offline_fragment(docker_context, cache_stage="cache-agent")
+    render_offline_fragment(
+        docker_context,
+        cache_stages=[
+            CacheStage("cache-agent", ("/opt/cache/uv", "/opt/wheelhouse")),
+            CacheStage("cache-frontend", ("/opt/cache/npm",)),
+        ],
+    )
 
     content = (docker_context / "dockerfile.d" / "99-offline.fragment").read_text()
     assert "FROM kernel AS offline" in content
-    # The uv cache is copied from the cache-perms stage (its root is chmod 0777 there so the
-    # uid-1000 model can write lock/temp files); the rest come straight from the cache stage.
-    assert (
-        "COPY --from=cache-perms --chown=notebooks:notebooks /opt/cache/uv /opt/cache/uv" in content
-    )
-    assert (
-        "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/npm /opt/cache/npm"
-        in content
-    )
+    # Each stage's own cache dirs are merged in, and nothing else: copying an empty dir from
+    # a stage only adds a layer.
+    copies = [line for line in content.splitlines() if line.startswith("COPY --from=")]
+    assert copies == [
+        "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/uv /opt/cache/uv",
+        "COPY --from=cache-agent --chown=notebooks:notebooks /opt/wheelhouse /opt/wheelhouse",
+        "COPY --from=cache-frontend --chown=notebooks:notebooks /opt/cache/npm /opt/cache/npm",
+    ]
     # The cache and venv modes govern whether a deployed model (a different uid) can write to
-    # them, so assert them: a wrong mode here breaks every generated image.
-    assert "RUN chmod -R a+rwX /opt/cache/uv" in content
+    # them, so assert them: a wrong mode here breaks every generated image. A Python stage
+    # already made nested uv files writable, so only the COPY-reset top-level dir is fixed
+    # here — no recursive chmod (and no cache-perms stage, which copied the whole cache).
+    assert "chmod -R" not in content
+    assert "cache-perms" not in content
     assert "RUN chmod 0777 /opt/cache/uv" in content
     assert "chmod a+rwx /opt/venv" in content
-    assert (
-        "COPY --from=cache-agent --chown=notebooks:notebooks /opt/cache/go /opt/cache/go" in content
-    )
-    assert (
-        "COPY --from=cache-agent --chown=notebooks:notebooks /opt/wheelhouse /opt/wheelhouse"
-        in content
-    )
     # The air-gap settings are pinned against the assembled Dockerfile, not here.
     assert "NOTEBOOKS_NO_PERSISTENT_DEPENDENCIES=1" in content
     assert "DEEPEVAL_HOME=/tmp/.deepeval" in content
+
+
+def test_render_offline_fragment_npm_only_makes_kernel_uv_cache_world_writable(
+    tmp_path: Path,
+) -> None:
+    """npm/go stages do not copy UV_CACHE; the offline stage must still chmod the kernel
+    tools cache the image inherits, or the uid-1000 model cannot write it.
+    """
+    docker_context = tmp_path / "ctx"
+    (docker_context / "dockerfile.d").mkdir(parents=True)
+
+    render_offline_fragment(
+        docker_context,
+        cache_stages=[CacheStage("cache-frontend", ("/opt/cache/npm",))],
+    )
+
+    content = (docker_context / "dockerfile.d" / "99-offline.fragment").read_text()
+    copies = [line for line in content.splitlines() if line.startswith("COPY --from=")]
+    assert copies == [
+        "COPY --from=cache-frontend --chown=notebooks:notebooks /opt/cache/npm /opt/cache/npm",
+    ]
+    assert "RUN chmod -R a+rwX /opt/cache/uv" in content
+    assert "RUN chmod 0777 /opt/cache/uv" not in content
 
 
 def test_render_offline_fragment_without_cache_stages(tmp_path: Path) -> None:
     docker_context = tmp_path / "ctx"
     (docker_context / "dockerfile.d").mkdir(parents=True)
 
-    render_offline_fragment(docker_context, cache_stage=None)
+    render_offline_fragment(docker_context, cache_stages=[])
 
     content = (docker_context / "dockerfile.d" / "99-offline.fragment").read_text()
     assert "FROM kernel AS offline" in content

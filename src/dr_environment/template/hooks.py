@@ -20,12 +20,21 @@ import os
 import subprocess
 from pathlib import Path
 
+from dr_environment.template.cache.stages import (
+    CacheStage,
+    finish_hook_fragment,
+    hook_fragment_header,
+)
 from dr_environment.template.discover import find_taskfile
 from dr_environment.template.models import Component
 
 
-def run_environment_hook(component: Component, docker_context: Path) -> None:
-    """Run `task environment` with the documented env contract."""
+def run_environment_hook(component: Component, docker_context: Path) -> CacheStage:
+    """Run `task environment` with the documented env contract; return the hook's stage.
+
+    The fragment starts as `FROM kernel AS cache-<name>`, so instructions the hook appends
+    get a stage of their own, built in parallel with the other cache stages.
+    """
     taskfile = find_taskfile(component.source_dir)
     if taskfile is None:
         raise FileNotFoundError(f"No Taskfile for component {component.name}")
@@ -37,7 +46,7 @@ def run_environment_hook(component: Component, docker_context: Path) -> None:
     )
     fragment_path.parent.mkdir(parents=True, exist_ok=True)
     if not fragment_path.exists():
-        fragment_path.write_text("", encoding="utf-8")
+        fragment_path.write_text(hook_fragment_header(component.name), encoding="utf-8")
 
     # A hook copies its manifests into COMPONENT_DEST, so the directory has to exist first.
     component_dest = docker_context / "components" / component.name
@@ -65,3 +74,5 @@ def run_environment_hook(component: Component, docker_context: Path) -> None:
             f"ERROR: 'task' is required to run the '{component.name}' environment hook but is "
             "not installed\n  Install: https://taskfile.dev/installation/"
         ) from exc
+
+    return finish_hook_fragment(fragment_path, component.name)

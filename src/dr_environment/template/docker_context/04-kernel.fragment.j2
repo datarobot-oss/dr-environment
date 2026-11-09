@@ -30,11 +30,16 @@ ENV PATH="$VENV_PATH/bin:/home/notebooks/.local/bin:$PATH"
 
 WORKDIR ${WORKDIR}
 
+# As $UNAME, which owns ${WORKDIR} and ${VENV_PATH} (01-user), so the venv is owned right
+# from the start. Changing the owner of a file from an earlier layer copies the whole file
+# into a new layer, so a later `chown -R` over the venv duplicated it in the image.
+USER $UNAME
 RUN uv venv "${VENV_PATH}"
 COPY kernel/requirements.txt /tmp/kernel/requirements.txt
 RUN uv pip install --no-cache -r /tmp/kernel/requirements.txt --python "${VENV_PATH}/bin/python"
 # Kernel venv is first on PATH; let `drdev` resolve to the `uv tool` install instead.
 RUN rm -f "${VENV_PATH}/bin/drdev"
+USER root
 
 COPY kernel/agent/agent.py kernel/agent/cgroup_watchers.py ${AGENTDIR}/
 COPY kernel/jupyter_kernel_gateway_config.py ${WORKDIR}/jupyter_kernel_gateway_config.py
@@ -62,7 +67,10 @@ RUN sed -i 's/\r$//' \
     /etc/profile.d/notebooks-path.sh
 
 # notebooks user must own profile.d stubs so setup-ssh.sh can snapshot runtime env at start.
-RUN chown -R $UNAME:$UNAME ${WORKDIR} ${VENV_PATH} /home/notebooks /etc/ssh /etc/authorized_keys \
+# Only files not already owned by $UNAME (the ones copied in above as root), not the venv:
+# see the venv install above for why not `chown -R`.
+RUN find ${WORKDIR} /home/notebooks /etc/ssh /etc/authorized_keys \
+        \( ! -user $UNAME -o ! -group $UNAME \) -exec chown -h $UNAME:$UNAME {} + \
     && touch /etc/profile.d/notebooks-load-env.sh \
     && chown $UNAME:$UNAME /etc/profile.d/notebooks-load-env.sh \
     && touch /etc/profile.d/bash-profile-load.sh \

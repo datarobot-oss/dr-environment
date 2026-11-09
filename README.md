@@ -160,8 +160,10 @@ If a component Taskfile defines an `environment` task, `dr environment template`
 | `DOCKER_CONTEXT` | Output docker context path |
 | `COMPONENT_DIR` | Source component directory |
 | `COMPONENT_NAME` | Component name |
-| `DOCKERFILE_FRAGMENT` | Path to append cache stage fragment |
+| `DOCKERFILE_FRAGMENT` | Path to append cache stage fragment; pre-filled with `FROM kernel AS cache-<name>` |
 | `COMPONENT_DEST` | `components/<name>/` in docker context |
+
+`DOCKERFILE_FRAGMENT` starts as `FROM kernel AS cache-<name>`, so the hook's instructions build in their own stage. The final image copies the cache dirs (`/opt/cache/uv`, `/opt/cache/npm`, the Go cache, the wheelhouse) out of the last stage the fragment defines.
 
 ## Development
 

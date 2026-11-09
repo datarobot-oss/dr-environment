@@ -65,7 +65,7 @@ def test_hook_runs_with_the_documented_contract(
     context = tmp_path / "ctx"
     context.mkdir()
 
-    run_environment_hook(component, context)
+    stage = run_environment_hook(component, context)
 
     argv, *values = record.read_text().splitlines()
     fragment = context / "dockerfile.d" / "10-cache-custom.fragment"
@@ -79,7 +79,12 @@ def test_hook_runs_with_the_documented_contract(
     }
     # The stub writes into both paths, so the content proves they existed before it ran.
     # Asserting bare existence afterwards would pass even if the code created them later.
-    assert fragment.read_text(encoding="utf-8") == "RUN echo hooked\n"
+    # The fragment opens the hook's own stage before the hook runs, and is closed after it.
+    assert fragment.read_text(encoding="utf-8") == (
+        "FROM kernel AS cache-custom\nRUN echo hooked\n"
+        "USER root\nRUN chmod -R a+rwX /opt/cache/uv\n"
+    )
+    assert stage.name == "cache-custom"
     assert (context / "components" / "custom" / "copied").is_file()
 
 
