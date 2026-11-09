@@ -57,7 +57,7 @@ Lockfile validation runs each ecosystem's own tool, so an application template m
 ## Install
 
 ```bash
-uv tool install 'dr-environment>=0.1.11'
+uv tool install 'dr-environment>=0.1.12'
 ```
 
 ## Make an execution environment
