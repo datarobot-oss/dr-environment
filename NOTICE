@@ -8,13 +8,13 @@ Licensed under the Apache License, Version 2.0 (see LICENSE).
 Third-party components
 --------------------------------------------------------------------------------
 
-Files under src/dr_environment/recipe/templates/docker_context/kernel/ are
+Files under src/dr_environment/template/docker_context/kernel/ are
 vendored from DataRobot's public datarobot-user-models repository, directory
 public_dropin_environments/python311_genai_agents/, except notebooks-path.sh and
 setup-caches.sh, which are original to this repository.
 
 The execution-environment templates under
-src/dr_environment/recipe/templates/docker_context/ include portions of the
+src/dr_environment/template/docker_context/ include portions of the
 following third-party works. Each remains under its own license.
 
 1. neptune-client

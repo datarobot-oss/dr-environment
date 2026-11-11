@@ -22,30 +22,26 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from dr_environment.recipe.cache.stages import UV_CACHE, CacheStage
-from dr_environment.recipe.versions import parse_tool_versions, python_version
+from dr_environment.template.cache.stages import UV_CACHE, CacheStage
+from dr_environment.template.versions import parse_tool_versions, python_version
 
 # Asset directories copied into docker_context; names match Dockerfile fragment stages.
 FRAGMENT_ASSET_DIRS = ("build-deps", "kernel")
 
 
-def template_root() -> Path:
-    return Path(__file__).resolve().parent / "templates" / "docker_context"
+def docker_context_root() -> Path:
+    return Path(__file__).resolve().parent / "docker_context"
 
 
 def copy_fragment_assets(docker_context: Path) -> None:
     """Copy per-fragment asset trees into the generated docker context."""
-    root = template_root()
+    root = docker_context_root()
     for name in FRAGMENT_ASSET_DIRS:
         src = root / name
         if not src.is_dir():
             continue
         # Byte-code left behind by a local lint run must not be baked into the image.
         shutil.copytree(src, docker_context / name, ignore=shutil.ignore_patterns("__pycache__"))
-
-
-# Backward-compatible alias for tests and callers.
-copy_static_template = copy_fragment_assets
 
 
 def render_base_fragment(docker_context: Path, versions: dict) -> None:
@@ -113,7 +109,7 @@ def render_offline_fragment(docker_context: Path, *, cache_stages: Sequence[Cach
         cache_stages=cache_stages,
         uv_cache=UV_CACHE,
         # Python/hook stages copy UV_CACHE with nested modes already world-writable;
-        # npm/go-only recipes do not, so the template falls back to a recursive chmod.
+        # npm/go-only application templates do not, so 99-offline falls back to a recursive chmod.
         uv_cache_copied=any(UV_CACHE in stage.paths for stage in cache_stages),
     )
     dockerfile_d = docker_context / "dockerfile.d"
@@ -122,7 +118,7 @@ def render_offline_fragment(docker_context: Path, *, cache_stages: Sequence[Cach
 
 def _jinja_env() -> Environment:
     return Environment(
-        loader=FileSystemLoader(str(template_root())),
+        loader=FileSystemLoader(str(docker_context_root())),
         autoescape=select_autoescape(enabled_extensions=()),
         keep_trailing_newline=True,
     )

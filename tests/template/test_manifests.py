@@ -14,7 +14,7 @@
 # limitations under the License.
 from pathlib import Path
 
-from dr_environment.recipe.manifests import find_manifest_file
+from dr_environment.template.manifests import find_manifest_file
 
 
 def test_a_dependency_directory_is_not_mistaken_for_the_component_manifest(

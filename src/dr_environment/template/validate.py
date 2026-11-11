@@ -19,8 +19,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from dr_environment.recipe.manifests import find_manifest_file
-from dr_environment.recipe.models import (
+from dr_environment.template.manifests import find_manifest_file
+from dr_environment.template.models import (
     Component,
     ComponentStrategy,
     Ecosystem,
@@ -34,8 +34,9 @@ MANIFEST_SPECS: tuple[tuple[str, str, Ecosystem, str], ...] = (
     ("go.mod", "go.sum", Ecosystem.GO, "go mod tidy"),
 )
 
-# Each ecosystem is validated with its own native tool, so a recipe pulls in whichever of these its
-# components use. Point the user at the installer rather than leaking a bare FileNotFoundError.
+# Each ecosystem is validated with its own native tool, so an application template pulls in
+# whichever of these its components use. Point the user at the installer rather than leaking a
+# bare FileNotFoundError.
 TOOL_INSTALL_HINTS: dict[str, str] = {
     "uv": "https://docs.astral.sh/uv/getting-started/installation/",
     "npm": "https://nodejs.org/en/download",

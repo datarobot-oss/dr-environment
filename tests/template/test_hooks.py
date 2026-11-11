@@ -24,8 +24,8 @@ from pathlib import Path
 
 import pytest
 
-from dr_environment.recipe.hooks import run_environment_hook
-from dr_environment.recipe.models import Component, ComponentStrategy
+from dr_environment.template.hooks import run_environment_hook
+from dr_environment.template.models import Component, ComponentStrategy
 
 CONTRACT = (
     "DOCKER_CONTEXT",

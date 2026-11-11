@@ -18,7 +18,7 @@ limitations under the License.
 # Each cache stage builds FROM kernel on its own, so this merges them: a later COPY into the
 # same dir adds to it. Python/hook stages make their uv files writable by any uid (the
 # deployed model runs as uid 1000 and opens them for writing), and the copies keep those
-# nested modes. NPM/Go-only recipes never copy UV_CACHE; the recursive chmod below covers
+# nested modes. NPM/Go-only application templates never copy UV_CACHE; the recursive chmod below covers
 # the kernel tools cache those images still inherit.
 FROM kernel AS offline
 
@@ -41,7 +41,7 @@ COPY --from={{ stage.name }} --chown=notebooks:notebooks {{ cache_path }} {{ cac
 # and temp files there. Nested modes were set in the Python/hook stage that filled the cache.
 RUN chmod 0777 {{ uv_cache }}
 {% else %}
-# No stage copied UV_CACHE (npm/go-only recipe). The image still inherits the kernel's
+# No stage copied UV_CACHE (npm/go-only application template). The image still inherits the kernel's
 # tools uv cache from versions/build-deps; make those files world-writable for uid 1000 —
 # the same guarantee the old cache-perms stage provided whenever any cache stage existed.
 # Recursive, but only the small tools cache, not a multi-GB component warm.

@@ -23,8 +23,8 @@ from pathlib import Path
 
 import click
 
-from dr_environment.recipe import build
-from dr_environment.recipe.versions import SUPPORTED_PYTHON_VERSIONS
+from dr_environment.template import build
+from dr_environment.template.versions import SUPPORTED_PYTHON_VERSIONS
 
 
 def _package_version() -> str:
@@ -50,12 +50,12 @@ def cli() -> None:
     """Build DataRobot execution environment Docker contexts."""
 
 
-@cli.command("recipe")
+@cli.command("template")
 @click.option(
-    "--recipe-path",
+    "--template-path",
     default=".",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Recipe root directory, defaults to the current working directory",
+    help="Application template root directory, defaults to the current working directory",
 )
 @click.option(
     "--target",
@@ -70,12 +70,12 @@ def cli() -> None:
     help="Override the base image's Python version, taking precedence over versions.yaml's "
     "python.version (and its default) if set.",
 )
-def recipe_cmd(
-    recipe_path: Path, target: str, no_tarball: bool, python_version: str | None
+def template_cmd(
+    template_path: Path, target: str, no_tarball: bool, python_version: str | None
 ) -> None:
-    """Build the recipe Codespace execution environment docker context."""
+    """Build a Codespace docker context from an application template."""
     docker_context = build(
-        recipe_path.resolve(),
+        template_path.resolve(),
         Path(target),
         python_version=python_version,
         tarball=not no_tarball,

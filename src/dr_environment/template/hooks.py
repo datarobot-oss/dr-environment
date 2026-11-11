@@ -20,13 +20,13 @@ import os
 import subprocess
 from pathlib import Path
 
-from dr_environment.recipe.cache.stages import (
+from dr_environment.template.cache.stages import (
     CacheStage,
     finish_hook_fragment,
     hook_fragment_header,
 )
-from dr_environment.recipe.discover import find_taskfile
-from dr_environment.recipe.models import Component
+from dr_environment.template.discover import find_taskfile
+from dr_environment.template.models import Component
 
 
 def run_environment_hook(component: Component, docker_context: Path) -> CacheStage:

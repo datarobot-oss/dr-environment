@@ -1,6 +1,6 @@
 # Packages warmed into the shared uv cache for offline use.
 #
-# PEP 517 build backends (uv sync on local recipe components):
+# PEP 517 build backends (uv sync on the application template's local components):
 # hatchling's build isolation also requires editables; pip install hatchling alone does not cache it.
 #
 # Pulumi python runtime with toolchain: uv invokes `uvx pip` to discover requirements;

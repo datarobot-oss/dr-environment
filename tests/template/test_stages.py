@@ -14,15 +14,15 @@
 # limitations under the License.
 from pathlib import Path
 
-from dr_environment.recipe.cache.stages import (
+from dr_environment.template.cache.stages import (
     CacheStage,
     finish_hook_fragment,
     hook_fragment_header,
     write_component_cache_fragment,
     write_component_cache_fragments,
 )
-from dr_environment.recipe.layout import LOCAL_SHARED_PACKAGE
-from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
+from dr_environment.template.layout import LOCAL_SHARED_PACKAGE
+from dr_environment.template.models import Component, ComponentStrategy, Ecosystem, ManifestInfo
 
 
 def _component(tmp_path: Path, name: str, ecosystem: Ecosystem, order: int) -> Component:

@@ -12,8 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Recipe docker context builder."""
+"""Application template docker context builder."""
 
-from dr_environment.recipe.build import build
+from dr_environment.template.build import build
 
 __all__ = ["build"]

@@ -20,9 +20,9 @@ import re
 import shutil
 from pathlib import Path
 
-from dr_environment.recipe.models import Component, ComponentStrategy, Ecosystem
+from dr_environment.template.models import Component, ComponentStrategy, Ecosystem
 
-# Recipe convention: sibling `core/` is a symlinked local shared Python package.
+# Application template convention: sibling `core/` is a symlinked local shared Python package.
 LOCAL_SHARED_PACKAGE = "core"
 
 COPY_MAP: dict[Ecosystem, tuple[str, ...]] = {

@@ -1,5 +1,5 @@
 ---
-# Minimal recipe for the end-to-end tests: a Python and an npm component, one with no
+# Minimal application template for the end-to-end tests: a Python and an npm component, one with no
 # manifest, and an internal include. Every component is dependency-free, so locking stays
 # offline. A Go component would need the toolchain, so unit tests cover the Go fragment.
 version: '3'

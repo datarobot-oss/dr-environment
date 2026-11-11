@@ -16,25 +16,25 @@ from pathlib import Path
 
 import pytest
 
-from dr_environment.recipe.cache.stages import CacheStage
-from dr_environment.recipe.render import (
+from dr_environment.template.cache.stages import CacheStage
+from dr_environment.template.render import (
     copy_fragment_assets,
+    docker_context_root,
     render_base_fragment,
     render_kernel_setup_fragment,
     render_offline_fragment,
     render_versions_fragment,
-    template_root,
 )
-from dr_environment.recipe.versions import _DEFAULTS
+from dr_environment.template.versions import _DEFAULTS
 
 
 def test_local_bytecode_is_not_copied_into_the_context(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    templates = tmp_path / "templates"
-    (templates / "kernel" / "__pycache__").mkdir(parents=True)
-    (templates / "kernel" / "__pycache__" / "render.pyc").write_bytes(b"")
-    monkeypatch.setattr("dr_environment.recipe.render.template_root", lambda: templates)
+    assets = tmp_path / "assets"
+    (assets / "kernel" / "__pycache__").mkdir(parents=True)
+    (assets / "kernel" / "__pycache__" / "render.pyc").write_bytes(b"")
+    monkeypatch.setattr("dr_environment.template.render.docker_context_root", lambda: assets)
 
     copy_fragment_assets(tmp_path / "ctx")
 
@@ -68,7 +68,7 @@ def test_render_kernel_fragment_does_not_chown_the_venv(tmp_path: Path) -> None:
 
 def test_kernel_datarobot_pin_matches_versions_default() -> None:
     """The kernel venv pin must not fall below the floor the image installs the SDK from."""
-    reqs = template_root() / "kernel" / "requirements.txt"
+    reqs = docker_context_root() / "kernel" / "requirements.txt"
     pinned = next(
         line.split("==", 1)[1].strip()
         for line in reqs.read_text(encoding="utf-8").splitlines()

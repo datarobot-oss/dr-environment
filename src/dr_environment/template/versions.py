@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Parse recipe .datarobot/cli/versions.yaml for Dockerfile rendering."""
+"""Parse an application template's .datarobot/cli/versions.yaml for Dockerfile rendering."""
 
 from __future__ import annotations
 
@@ -62,8 +62,8 @@ _YAML_KEYS = {
 }
 
 # An exact Wolfi apk suffix, not a floor like the tools above, hence its own allowlist —
-# not a claim any given recipe supports each of these, just what Wolfi packages exist to
-# build the base image from.
+# not a claim any given application template supports each of these, just what Wolfi
+# packages exist to build the base image from.
 SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12", "3.13", "3.14")
 _DEFAULT_PYTHON_VERSION = "3.11"
 
