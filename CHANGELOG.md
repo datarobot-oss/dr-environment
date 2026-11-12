@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.13
+- Drop SHA-1 key exchange (`diffie-hellman-group-exchange-sha1`, `diffie-hellman-group14-sha1`) and the `hmac-sha1` MAC from the kernel `sshd_config`. SHA-1 is not allowed under FIPS 140-3, and the comment above the list called it FIPS compliant.
+
 ## 0.1.12
 - Rename `dr environment recipe --recipe-path` to `dr environment template --template-path`; the old command and flag are removed.
 - Rename the internal package `dr_environment.recipe` to `dr_environment.template`.
