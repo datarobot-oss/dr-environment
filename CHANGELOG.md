@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.14
+- Add `--fips` to `dr environment template`: build on DataRobot's mirror of Chainguard `python-fips` instead of public Wolfi, so the image passes the FIPS 140-3 self-test. `DR_ENVIRONMENT_FIPS_BASE_IMAGE` (or `--fips-base-image`) points it at another mirror.
+
 ## 0.1.13
 - Drop SHA-1 key exchange (`diffie-hellman-group-exchange-sha1`, `diffie-hellman-group14-sha1`) and the `hmac-sha1` MAC from the kernel `sshd_config`. SHA-1 is not allowed under FIPS 140-3, and the comment above the list called it FIPS compliant.
 

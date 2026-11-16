@@ -88,6 +88,34 @@ def test_template_command_python_version_overrides_versions_yaml(
     assert "ARG PYTHON_VERSION=3.13" in fragment
 
 
+def test_template_command_fips_uses_the_python_fips_base_and_the_env_override(
+    template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    fragment = Path("docker_context/dockerfile.d/00-base.fragment")
+    args = ["template", "--template-path", str(template), "--no-tarball"]
+
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 0, result.output
+    assert "cgr.dev/chainguard/wolfi-base" in fragment.read_text(encoding="utf-8")
+
+    result = CliRunner().invoke(cli, [*args, "--fips"])
+    assert result.exit_code == 0, result.output
+    assert (
+        "FROM --platform=${TARGETPLATFORM} "
+        "datarobot/mirror_chainguard_datarobot.com_python-fips:${PYTHON_VERSION}-dev "
+        "AS wolfi_python_dev"
+    ) in fragment.read_text(encoding="utf-8")
+
+    result = CliRunner().invoke(
+        cli, [*args, "--fips"], env={"DR_ENVIRONMENT_FIPS_BASE_IMAGE": "example/python-fips"}
+    )
+    assert result.exit_code == 0, result.output
+    content = fragment.read_text(encoding="utf-8")
+    assert "FROM --platform=${TARGETPLATFORM} example/python-fips:${PYTHON_VERSION}-dev" in content
+    assert "cgr.dev/chainguard/wolfi-base" not in content
+
+
 def test_template_command_rejects_an_unsupported_python_version(
     template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

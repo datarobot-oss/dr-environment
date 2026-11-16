@@ -112,6 +112,21 @@ Defaults:
 dr environment template --template-path . --no-tarball
 ```
 
+### FIPS 140-3
+
+On a FIPS 140-3 install, an execution environment does not start unless its base ships
+`openssl-fips-test`. Public Wolfi does not, so pass `--fips` to build on DataRobot's mirror of
+Chainguard `python-fips`:
+
+```bash
+docker login  # with the DataRobot-issued pull credentials
+dr environment template --template-path . --fips
+```
+
+`--fips` uses `datarobot/mirror_chainguard_datarobot.com_python-fips:<python version>-dev`. To pull
+from another mirror, set `DR_ENVIRONMENT_FIPS_BASE_IMAGE` (or `--fips-base-image`) to its
+repository, without a tag.
+
 ## What it produces
 
 ```

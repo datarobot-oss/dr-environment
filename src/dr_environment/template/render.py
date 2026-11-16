@@ -44,13 +44,17 @@ def copy_fragment_assets(docker_context: Path) -> None:
         shutil.copytree(src, docker_context / name, ignore=shutil.ignore_patterns("__pycache__"))
 
 
-def render_base_fragment(docker_context: Path, versions: dict) -> None:
+def render_base_fragment(
+    docker_context: Path, versions: dict, *, fips_base_image: str | None = None
+) -> None:
+    """Render the base stage; ``fips_base_image`` (repository, no tag) swaps Wolfi for it."""
     env = _jinja_env()
     template = env.get_template("00-base.fragment.j2")
     content = template.render(
         uv_cache_dir="/opt/cache/uv",
         python_version=python_version(versions),
         target_platform="linux/amd64",
+        fips_base_image=fips_base_image,
     )
     dockerfile_d = docker_context / "dockerfile.d"
     dockerfile_d.mkdir(parents=True, exist_ok=True)

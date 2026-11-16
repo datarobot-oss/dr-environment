@@ -52,6 +52,7 @@ def build(
     *,
     tarball: bool = True,
     python_version: str | None = None,
+    fips_base_image: str | None = None,
 ) -> Path:
     template_path = template_path.resolve()
     docker_context = target.resolve() if target.is_absolute() else (Path.cwd() / target).resolve()
@@ -84,7 +85,7 @@ def build(
         # CLI override wins outright over whatever (if anything) versions.yaml states.
         versions = {**versions, "python": {"version": python_version}}
     copy_fragment_assets(docker_context)
-    render_base_fragment(docker_context, versions)
+    render_base_fragment(docker_context, versions, fips_base_image=fips_base_image)
     render_user_fragment(docker_context)
     render_versions_fragment(docker_context, versions)
     render_build_deps_fragment(docker_context)
