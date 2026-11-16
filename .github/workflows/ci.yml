@@ -263,11 +263,12 @@ jobs:
           echo "::endgroup::"
           # The image manifests list direct pins only, but the build installs their transitive
           # closures. Resolve each against the image's Python before auditing, or CVEs in
-          # transitive packages ship without failing CI.
+          # transitive packages ship without failing CI. Pin the patch Wolfi's python-3.11 ships: a
+          # bare 3.11 means 3.11.0, which picks old releases of packages that need a later patch.
           for f in src/dr_environment/template/docker_context/kernel/requirements.txt \
                    src/dr_environment/template/docker_context/build-deps/build-requirements.txt; do
             resolved="${RUNNER_TEMP}/$(basename "$f").resolved.txt"
-            uv pip compile --python-version 3.11 --no-header --no-annotate -o "$resolved" "$f"
+            uv pip compile --python-version 3.11.18 --no-header --no-annotate -o "$resolved" "$f"
             echo "::group::pip-audit $f"
             uvx pip-audit==2.9.0 --disable-pip --no-deps "${IGNORE[@]}" -r "$resolved"
             echo "::endgroup::"
