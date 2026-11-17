@@ -132,6 +132,9 @@ repository, without a tag.
 - `cryptography` and `grpcio` are built from source against the system OpenSSL, at build time and
   whenever uv or pip installs them later. PyPI wheels bundle their own OpenSSL and BoringSSL. The
   build fails if a cached build links anything else.
+- The newest locked `cryptography` and `grpcio` are preinstalled into the system Python, so
+  DataRobot's offline `uv pip install --system --no-cache` for a custom app finds them
+  installed instead of failing to build them.
 - `GODEBUG=fips140=on` for Go tools (`pulumi`, `task`, `gh`, `dr`).
 - A guard on `PYTHONPATH` (`/etc/datarobot-fips`, from datarobot-user-models) stops any Python
   process whose FIPS module fails, with exit 78. `DATAROBOT_FIPS_ENFORCE=false` turns it off.

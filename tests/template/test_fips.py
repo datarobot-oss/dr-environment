@@ -28,6 +28,7 @@ import pytest
 from dr_environment.template.cache.stages import CacheStage
 from dr_environment.template.render import (
     docker_context_root,
+    fips_preinstall_specs,
     render_base_fragment,
     render_offline_fragment,
 )
@@ -42,10 +43,10 @@ def _base_fragment(tmp_path: Path) -> str:
     return (tmp_path / "dockerfile.d" / "00-base.fragment").read_text(encoding="utf-8")
 
 
-def _offline_fragment(tmp_path: Path, *, fips: bool) -> str:
+def _offline_fragment(tmp_path: Path, *, fips: bool, preinstall: tuple[str, ...] = ()) -> str:
     (tmp_path / "dockerfile.d").mkdir(parents=True, exist_ok=True)
     stages = [CacheStage("cache-agent", ("/opt/cache/uv", "/opt/wheelhouse"))]
-    render_offline_fragment(tmp_path, cache_stages=stages, fips=fips)
+    render_offline_fragment(tmp_path, cache_stages=stages, fips=fips, fips_preinstall=preinstall)
     return (tmp_path / "dockerfile.d" / "99-offline.fragment").read_text(encoding="utf-8")
 
 
@@ -145,3 +146,33 @@ def test_the_guard_halts_only_when_fips_is_enforced_without_fips_mode(
     else:
         assert result.stdout == "started\n"
         assert result.stderr == ""
+
+
+def _lock(path: Path, packages: dict[str, str]) -> Path:
+    path.write_text(
+        "".join(f'[[package]]\nname = "{n}"\nversion = "{v}"\n\n' for n, v in packages.items()),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_the_preinstall_takes_the_newest_locked_version_of_each_package(tmp_path: Path) -> None:
+    locks = [
+        _lock(tmp_path / "a.lock", {"cryptography": "50.0.0", "grpcio": "1.85.1", "httpx": "1"}),
+        _lock(tmp_path / "b.lock", {"cryptography": "50.0.10"}),
+        _lock(tmp_path / "c.lock", {"cryptography": "50.0.2"}),
+    ]
+
+    assert fips_preinstall_specs(locks) == ["cryptography==50.0.10", "grpcio==1.85.1"]
+    assert fips_preinstall_specs([_lock(tmp_path / "d.lock", {"httpx": "1"})]) == []
+
+
+def test_the_preinstall_passes_no_binary_because_uv_pip_ignores_the_env(tmp_path: Path) -> None:
+    fragment = _offline_fragment(
+        tmp_path, fips=True, preinstall=("cryptography==50.0.2", "grpcio==1.85.1")
+    )
+
+    command = _run_instruction(fragment, "uv pip install --system")
+    assert "--no-binary cryptography --no-binary grpcio" in command
+    assert command.endswith("cryptography==50.0.2 grpcio==1.85.1")
+    assert "uv pip install" not in _offline_fragment(tmp_path / "none", fips=True)

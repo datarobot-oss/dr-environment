@@ -26,10 +26,11 @@ from dr_environment.template.cache.stages import CacheStage, write_component_cac
 from dr_environment.template.discover import discover_components
 from dr_environment.template.hooks import run_environment_hook
 from dr_environment.template.layout import layout_components
-from dr_environment.template.models import ComponentStrategy
+from dr_environment.template.models import ComponentStrategy, Ecosystem
 from dr_environment.template.render import (
     assemble_dockerfile,
     copy_fragment_assets,
+    fips_preinstall_specs,
     render_base_fragment,
     render_build_deps_fragment,
     render_kernel_setup_fragment,
@@ -105,10 +106,17 @@ def build(
     ):
         stages[component.name] = stage
 
+    python_lockfiles = [
+        info.lockfile
+        for component in active
+        for info in component.manifests
+        if info.ecosystem == Ecosystem.PYTHON and info.lockfile
+    ]
     render_offline_fragment(
         docker_context,
         cache_stages=[stages[c.name] for c in components if c.name in stages],
         fips=fips_base_image is not None,
+        fips_preinstall=fips_preinstall_specs(python_lockfiles) if fips_base_image else (),
     )
     assemble_dockerfile(docker_context)
 

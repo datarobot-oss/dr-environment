@@ -62,10 +62,16 @@ RUN sed -i 's/\r$//' /opt/code/start_server.sh \
     && mkdir -p /opt/venv && chmod a+rwx /opt/venv
 
 {% if fips -%}
-# Every grpcio and cryptography build in the caches must link the system OpenSSL (see the
+{% if fips_preinstall -%}
+# Preinstalled for offline app builds; see fips_preinstall_specs in render.py. `uv pip`
+# ignores UV_NO_BINARY_PACKAGE, so --no-binary is passed here.
+RUN uv pip install --system{% for p in fips_source_build_packages %} --no-binary {{ p }}{% endfor %} {{ fips_preinstall | join(" ") }}
+
+{% endif -%}
+# Every grpcio and cryptography build in the caches and the system Python must link the system OpenSSL (see the
 # FIPS block in the base stage), and the wheelhouse must hold their sources, not PyPI wheels.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN bad=$(find {{ uv_cache }} {{ wheelhouse }} -name 'cygrpc*.so' -o -path '*cryptography*' -name '_rust*.so' \
+RUN bad=$(find {{ uv_cache }} {{ wheelhouse }} /usr/lib/python3*/site-packages -name 'cygrpc*.so' -o -path '*cryptography*' -name '_rust*.so' \
         | while read -r so; do readelf -d "$so" | grep -q 'libssl\.so\.4' || echo "$so"; done) \
     && if [ -n "$bad" ]; then echo "not linked to the system OpenSSL: $bad"; exit 1; fi \
     && ! ls {{ wheelhouse }}/grpcio-*.whl {{ wheelhouse }}/cryptography-*.whl 2>/dev/null
