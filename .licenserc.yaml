@@ -38,6 +38,8 @@ header:
   paths-ignore:
     # Third-party: OpenSSH's stock server config (see NOTICE). Not ours to relicense.
     - 'src/dr_environment/template/docker_context/kernel/sshd_config'
+    # Third-party: Chainguard python-fips's /etc/ssl/openssl.cnf, a test fixture.
+    - 'tests/fixtures/fips/chainguard-openssl.cnf'
     - 'build/'
     - 'dist/'
     - 'venv/'

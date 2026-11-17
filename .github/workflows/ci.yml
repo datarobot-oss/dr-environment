@@ -201,6 +201,15 @@ jobs:
             ghcr.io/hadolint/hadolint:v2.14.0-alpine \
             hadolint --config /.hadolint.yaml - < "${{ runner.temp }}/docker_context/Dockerfile"
 
+      # Lint only: the FIPS base is a private mirror, so `buildx build --check` below cannot pull it.
+      - name: Generate and lint the FIPS docker context
+        run: |
+          uv run dr-environment template --template-path tests/fixtures/template \
+            --target "${{ runner.temp }}/docker_context_fips" --no-tarball --fips
+          docker run --rm -i -v "$(pwd)/.hadolint.yaml":/.hadolint.yaml:ro \
+            ghcr.io/hadolint/hadolint:v2.14.0-alpine \
+            hadolint --config /.hadolint.yaml - < "${{ runner.temp }}/docker_context_fips/Dockerfile"
+
       # `buildx build --check` resolves the stage graph and the base image without building a
       # layer. The RedundantTargetPlatform skip covers the deliberate ARG shadowing that forces
       # linux/amd64. BuildKit updates with the runner image, so new rules can flag an unchanged PR.
