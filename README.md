@@ -127,6 +127,19 @@ dr environment template --template-path . --fips
 from another mirror, set `DR_ENVIRONMENT_FIPS_BASE_IMAGE` (or `--fips-base-image`) to its
 repository, without a tag.
 
+`--fips` also keeps the image's crypto in the FIPS module:
+
+- `cryptography` and `grpcio` are built from source against the system OpenSSL, at build time and
+  whenever uv or pip installs them later. PyPI wheels bundle their own OpenSSL and BoringSSL. The
+  build fails if a cached build links anything else.
+- `GODEBUG=fips140=on` for Go tools (`pulumi`, `task`, `gh`, `dr`).
+- A guard on `PYTHONPATH` (`/etc/datarobot-fips`, from datarobot-user-models) stops any Python
+  process whose FIPS module fails, with exit 78. `DATAROBOT_FIPS_ENFORCE=false` turns it off.
+- OpenSSL's legacy provider is replaced by the default one, so `hashlib.md5()` raises and
+  `md5(usedforsecurity=False)` still works.
+
+Node and Pulumi's Go crypto are not FIPS-validated builds.
+
 ## What it produces
 
 ```

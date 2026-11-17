@@ -22,7 +22,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from dr_environment.template.cache.stages import UV_CACHE, CacheStage
+from dr_environment.template.cache.stages import UV_CACHE, WHEELHOUSE, CacheStage
 from dr_environment.template.versions import parse_tool_versions, python_version
 
 # Asset directories copied into docker_context; names match Dockerfile fragment stages.
@@ -106,12 +106,16 @@ def render_kernel_setup_fragment(docker_context: Path) -> None:
     (dockerfile_d / "04-kernel.fragment").write_text(content, encoding="utf-8")
 
 
-def render_offline_fragment(docker_context: Path, *, cache_stages: Sequence[CacheStage]) -> None:
+def render_offline_fragment(
+    docker_context: Path, *, cache_stages: Sequence[CacheStage], fips: bool = False
+) -> None:
     env = _jinja_env()
     template = env.get_template("99-offline.fragment.j2")
     content = template.render(
         cache_stages=cache_stages,
         uv_cache=UV_CACHE,
+        wheelhouse=WHEELHOUSE,
+        fips=fips,
         # Python/hook stages copy UV_CACHE with nested modes already world-writable;
         # npm/go-only application templates do not, so 99-offline falls back to a recursive chmod.
         uv_cache_copied=any(UV_CACHE in stage.paths for stage in cache_stages),

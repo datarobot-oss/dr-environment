@@ -106,7 +106,9 @@ def build(
         stages[component.name] = stage
 
     render_offline_fragment(
-        docker_context, cache_stages=[stages[c.name] for c in components if c.name in stages]
+        docker_context,
+        cache_stages=[stages[c.name] for c in components if c.name in stages],
+        fips=fips_base_image is not None,
     )
     assemble_dockerfile(docker_context)
 

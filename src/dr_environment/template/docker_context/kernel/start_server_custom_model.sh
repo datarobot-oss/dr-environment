@@ -82,8 +82,8 @@ fi
 if [ -d "$SCRIPT_DIR/app" ]; then
     echo "Starting Custom Model environment with MCP server"
 
-    # Set Python path to script directory for module imports
-    export PYTHONPATH="$SCRIPT_DIR"
+    # Script directory first for module imports; keep the image's entries (the FIPS guard).
+    export PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
     # Start the MCP server
     exec python -m app.main

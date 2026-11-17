@@ -95,9 +95,21 @@ def test_template_command_fips_uses_the_python_fips_base_and_the_env_override(
     fragment = Path("docker_context/dockerfile.d/00-base.fragment")
     args = ["template", "--template-path", str(template), "--no-tarball"]
 
+    dockerfile = Path("docker_context/Dockerfile")
+    fips_lines = (
+        'UV_NO_BINARY_PACKAGE="cryptography grpcio"',
+        "GODEBUG=fips140=on",
+        "COPY kernel/fips /etc/datarobot-fips/",
+        'PYTHONPATH="/etc/datarobot-fips:',
+        "default = default_sect",
+        "readelf -d",
+    )
+
     result = CliRunner().invoke(cli, args)
     assert result.exit_code == 0, result.output
     assert "cgr.dev/chainguard/wolfi-base" in fragment.read_text(encoding="utf-8")
+    content = dockerfile.read_text(encoding="utf-8")
+    assert not [line for line in fips_lines if line in content]
 
     result = CliRunner().invoke(cli, [*args, "--fips"])
     assert result.exit_code == 0, result.output
@@ -106,6 +118,8 @@ def test_template_command_fips_uses_the_python_fips_base_and_the_env_override(
         "datarobot/mirror_chainguard_datarobot.com_python-fips:${PYTHON_VERSION}-dev "
         "AS wolfi_python_dev"
     ) in fragment.read_text(encoding="utf-8")
+    content = dockerfile.read_text(encoding="utf-8")
+    assert [line for line in fips_lines if line not in content] == []
 
     result = CliRunner().invoke(
         cli, [*args, "--fips"], env={"DR_ENVIRONMENT_FIPS_BASE_IMAGE": "example/python-fips"}
