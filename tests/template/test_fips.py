@@ -27,6 +27,7 @@ import pytest
 
 from dr_environment.template.cache.stages import CacheStage
 from dr_environment.template.render import (
+    count_custom_apps,
     docker_context_root,
     fips_preinstall_specs,
     render_base_fragment,
@@ -176,3 +177,21 @@ def test_the_preinstall_passes_no_binary_because_uv_pip_ignores_the_env(tmp_path
     assert "--no-binary cryptography --no-binary grpcio" in command
     assert command.endswith("cryptography==50.0.2 grpcio==1.85.1")
     assert "uv pip install" not in _offline_fragment(tmp_path / "none", fips=True)
+
+
+def test_custom_apps_are_counted_by_their_application_source_calls(tmp_path: Path) -> None:
+    infra = tmp_path / "infra" / "infra"
+    infra.mkdir(parents=True)
+    (infra / "app.py").write_text(
+        "args = ApplicationSourceArgs(x=1)\n"
+        "src = pulumi_datarobot.ApplicationSource(resource_name='a')\n",
+        encoding="utf-8",
+    )
+    for skipped in ("infra/.venv/lib", "infra/tests", "frontend/node_modules/x"):
+        (tmp_path / skipped).mkdir(parents=True)
+        (tmp_path / skipped / "m.py").write_text("ApplicationSource(\n", encoding="utf-8")
+
+    assert count_custom_apps(tmp_path) == 1
+
+    (infra / "second.py").write_text("ApplicationSource(resource_name='b')\n", encoding="utf-8")
+    assert count_custom_apps(tmp_path) == 2

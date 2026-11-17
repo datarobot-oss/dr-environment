@@ -118,6 +118,10 @@ def fips_preinstall_specs(lockfiles: Iterable[Path]) -> list[str]:
     App builds on a --fips image run ``uv pip install --system --no-cache`` offline. That
     cannot build these packages (no maturin, no crates.io), so the image preinstalls them
     into the system Python and the install finds them already satisfied.
+
+    A stopgap: the system Python holds one version per package, so it only works for a
+    template with one app (``count_custom_apps``), whose lock has the newest versions. It can
+    go once app builds reuse the image's uv cache instead of ``--no-cache``, or apps are retired.
     """
     newest: dict[str, str] = {}
     for lockfile in lockfiles:
@@ -129,6 +133,19 @@ def fips_preinstall_specs(lockfiles: Iterable[Path]) -> list[str]:
             if name not in newest or _version_key(version) > _version_key(newest[name]):
                 newest[name] = version
     return [f"{name}=={newest[name]}" for name in FIPS_SOURCE_BUILD_PACKAGES if name in newest]
+
+
+#: Directories that hold no template code: virtualenvs, node packages, VCS data, tests.
+_NON_TEMPLATE_DIRS = {".venv", "venv", "node_modules", ".git", "tests"}
+
+
+def count_custom_apps(template_path: Path) -> int:
+    """Count the ``ApplicationSource(`` calls in the template's Pulumi code: one per app."""
+    count = 0
+    for source in template_path.rglob("*.py"):
+        if _NON_TEMPLATE_DIRS.isdisjoint(source.relative_to(template_path).parts):
+            count += len(re.findall(r"\bApplicationSource\(", source.read_text(encoding="utf-8")))
+    return count
 
 
 def _version_key(version: str) -> tuple[int, ...]:

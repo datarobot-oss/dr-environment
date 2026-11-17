@@ -30,6 +30,7 @@ from dr_environment.template.models import ComponentStrategy, Ecosystem
 from dr_environment.template.render import (
     assemble_dockerfile,
     copy_fragment_assets,
+    count_custom_apps,
     fips_preinstall_specs,
     render_base_fragment,
     render_build_deps_fragment,
@@ -38,7 +39,7 @@ from dr_environment.template.render import (
     render_user_fragment,
     render_versions_fragment,
 )
-from dr_environment.template.validate import inspect_component, validate_all
+from dr_environment.template.validate import ValidationError, inspect_component, validate_all
 
 
 def load_versions(versions_file: Path) -> dict:
@@ -72,6 +73,13 @@ def build(
 
     components = discover_components(template_path)
     validate_all(components)
+    if fips_base_image and (apps := count_custom_apps(template_path)) > 1:
+        raise ValidationError(
+            [
+                f"--fips supports a template with one custom app; found {apps}. The image "
+                "preinstalls one version of cryptography and grpcio for offline app builds."
+            ]
+        )
     for component in components:
         inspect_component(component)
 

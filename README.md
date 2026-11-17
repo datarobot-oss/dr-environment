@@ -134,7 +134,8 @@ repository, without a tag.
   build fails if a cached build links anything else.
 - The newest locked `cryptography` and `grpcio` are preinstalled into the system Python, so
   DataRobot's offline `uv pip install --system --no-cache` for a custom app finds them
-  installed instead of failing to build them.
+  installed instead of failing to build them. That holds one version of each, so `--fips`
+  refuses a template with more than one custom app (`ApplicationSource` in its Pulumi code).
 - `GODEBUG=fips140=on` for Go tools (`pulumi`, `task`, `gh`, `dr`).
 - A guard on `PYTHONPATH` (`/etc/datarobot-fips`, from datarobot-user-models) stops any Python
   process whose FIPS module fails, with exit 78. `DATAROBOT_FIPS_ENFORCE=false` turns it off.

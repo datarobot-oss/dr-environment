@@ -130,6 +130,24 @@ def test_template_command_fips_uses_the_python_fips_base_and_the_env_override(
     assert "cgr.dev/chainguard/wolfi-base" not in content
 
 
+def test_fips_refuses_a_template_with_more_than_one_custom_app(
+    template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The --fips image preinstalls one version of cryptography and grpcio, enough for one app."""
+    monkeypatch.chdir(tmp_path)
+    for name in ("one", "two"):
+        (template / f"{name}.py").write_text(
+            f"pulumi_datarobot.ApplicationSource(resource_name='{name}')\n", encoding="utf-8"
+        )
+    args = ["template", "--template-path", str(template), "--no-tarball"]
+
+    result = CliRunner().invoke(cli, [*args, "--fips"])
+    assert result.exit_code != 0
+    assert "one custom app; found 2" in str(result.exception)
+
+    assert CliRunner().invoke(cli, args).exit_code == 0
+
+
 def test_template_command_rejects_an_unsupported_python_version(
     template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
