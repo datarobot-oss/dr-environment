@@ -16,14 +16,20 @@
 
 from __future__ import annotations
 
+import re
 import shutil
-from collections.abc import Sequence
+import tomllib
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from dr_environment.template.cache.stages import UV_CACHE, CacheStage
+from dr_environment.template.cache.stages import UV_CACHE, WHEELHOUSE, CacheStage
 from dr_environment.template.versions import parse_tool_versions, python_version
+
+#: Packages the --fips image builds from source against the system OpenSSL. The base
+#: fragment's UV_NO_BINARY_PACKAGE / PIP_NO_BINARY name the same two.
+FIPS_SOURCE_BUILD_PACKAGES = ("cryptography", "grpcio")
 
 # Asset directories copied into docker_context; names match Dockerfile fragment stages.
 FRAGMENT_ASSET_DIRS = ("build-deps", "kernel")
@@ -44,13 +50,17 @@ def copy_fragment_assets(docker_context: Path) -> None:
         shutil.copytree(src, docker_context / name, ignore=shutil.ignore_patterns("__pycache__"))
 
 
-def render_base_fragment(docker_context: Path, versions: dict) -> None:
+def render_base_fragment(
+    docker_context: Path, versions: dict, *, fips_base_image: str | None = None
+) -> None:
+    """Render the base stage; ``fips_base_image`` (repository, no tag) swaps Wolfi for it."""
     env = _jinja_env()
     template = env.get_template("00-base.fragment.j2")
     content = template.render(
         uv_cache_dir="/opt/cache/uv",
         python_version=python_version(versions),
         target_platform="linux/amd64",
+        fips_base_image=fips_base_image,
     )
     dockerfile_d = docker_context / "dockerfile.d"
     dockerfile_d.mkdir(parents=True, exist_ok=True)
@@ -102,12 +112,62 @@ def render_kernel_setup_fragment(docker_context: Path) -> None:
     (dockerfile_d / "04-kernel.fragment").write_text(content, encoding="utf-8")
 
 
-def render_offline_fragment(docker_context: Path, *, cache_stages: Sequence[CacheStage]) -> None:
+def fips_preinstall_specs(lockfiles: Iterable[Path]) -> list[str]:
+    """Return ``name==version`` for the newest locked version of each source-built package.
+
+    App builds on a --fips image run ``uv pip install --system --no-cache`` offline. That
+    cannot build these packages (no maturin, no crates.io), so the image preinstalls them
+    into the system Python and the install finds them already satisfied.
+
+    A stopgap: the system Python holds one version per package, so it only works for a
+    template with one app (``count_custom_apps``), whose lock has the newest versions. It can
+    go once app builds reuse the image's uv cache instead of ``--no-cache``, or apps are retired.
+    """
+    newest: dict[str, str] = {}
+    for lockfile in lockfiles:
+        for package in tomllib.loads(lockfile.read_text(encoding="utf-8")).get("package", []):
+            name, version = package.get("name"), package.get("version")
+            if name not in FIPS_SOURCE_BUILD_PACKAGES or not version:
+                continue
+            # ponytail: numeric X.Y.Z compare; a pre-release suffix is ignored.
+            if name not in newest or _version_key(version) > _version_key(newest[name]):
+                newest[name] = version
+    return [f"{name}=={newest[name]}" for name in FIPS_SOURCE_BUILD_PACKAGES if name in newest]
+
+
+#: Directories that hold no template code: virtualenvs, node packages, VCS data, tests.
+_NON_TEMPLATE_DIRS = {".venv", "venv", "node_modules", ".git", "tests"}
+
+
+def count_custom_apps(template_path: Path) -> int:
+    """Count the ``ApplicationSource(`` calls in the template's Pulumi code: one per app."""
+    count = 0
+    for source in template_path.rglob("*.py"):
+        if _NON_TEMPLATE_DIRS.isdisjoint(source.relative_to(template_path).parts):
+            count += len(re.findall(r"\bApplicationSource\(", source.read_text(encoding="utf-8")))
+    return count
+
+
+def _version_key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in re.findall(r"\d+", version))
+
+
+def render_offline_fragment(
+    docker_context: Path,
+    *,
+    cache_stages: Sequence[CacheStage],
+    fips: bool = False,
+    fips_preinstall: Sequence[str] = (),
+) -> None:
     env = _jinja_env()
     template = env.get_template("99-offline.fragment.j2")
     content = template.render(
         cache_stages=cache_stages,
         uv_cache=UV_CACHE,
+        wheelhouse=WHEELHOUSE,
+        fips=fips,
+        fips_preinstall=fips_preinstall,
+        fips_source_build_packages=FIPS_SOURCE_BUILD_PACKAGES,
         # Python/hook stages copy UV_CACHE with nested modes already world-writable;
         # npm/go-only application templates do not, so 99-offline falls back to a recursive chmod.
         uv_cache_copied=any(UV_CACHE in stage.paths for stage in cache_stages),

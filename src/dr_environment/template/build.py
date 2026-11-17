@@ -26,10 +26,12 @@ from dr_environment.template.cache.stages import CacheStage, write_component_cac
 from dr_environment.template.discover import discover_components
 from dr_environment.template.hooks import run_environment_hook
 from dr_environment.template.layout import layout_components
-from dr_environment.template.models import ComponentStrategy
+from dr_environment.template.models import ComponentStrategy, Ecosystem
 from dr_environment.template.render import (
     assemble_dockerfile,
     copy_fragment_assets,
+    count_custom_apps,
+    fips_preinstall_specs,
     render_base_fragment,
     render_build_deps_fragment,
     render_kernel_setup_fragment,
@@ -37,7 +39,7 @@ from dr_environment.template.render import (
     render_user_fragment,
     render_versions_fragment,
 )
-from dr_environment.template.validate import inspect_component, validate_all
+from dr_environment.template.validate import ValidationError, inspect_component, validate_all
 
 
 def load_versions(versions_file: Path) -> dict:
@@ -52,6 +54,7 @@ def build(
     *,
     tarball: bool = True,
     python_version: str | None = None,
+    fips_base_image: str | None = None,
 ) -> Path:
     template_path = template_path.resolve()
     docker_context = target.resolve() if target.is_absolute() else (Path.cwd() / target).resolve()
@@ -70,6 +73,13 @@ def build(
 
     components = discover_components(template_path)
     validate_all(components)
+    if fips_base_image and (apps := count_custom_apps(template_path)) > 1:
+        raise ValidationError(
+            [
+                f"--fips supports a template with one custom app; found {apps}. The image "
+                "preinstalls one version of cryptography and grpcio for offline app builds."
+            ]
+        )
     for component in components:
         inspect_component(component)
 
@@ -84,7 +94,7 @@ def build(
         # CLI override wins outright over whatever (if anything) versions.yaml states.
         versions = {**versions, "python": {"version": python_version}}
     copy_fragment_assets(docker_context)
-    render_base_fragment(docker_context, versions)
+    render_base_fragment(docker_context, versions, fips_base_image=fips_base_image)
     render_user_fragment(docker_context)
     render_versions_fragment(docker_context, versions)
     render_build_deps_fragment(docker_context)
@@ -104,8 +114,17 @@ def build(
     ):
         stages[component.name] = stage
 
+    python_lockfiles = [
+        info.lockfile
+        for component in active
+        for info in component.manifests
+        if info.ecosystem == Ecosystem.PYTHON and info.lockfile
+    ]
     render_offline_fragment(
-        docker_context, cache_stages=[stages[c.name] for c in components if c.name in stages]
+        docker_context,
+        cache_stages=[stages[c.name] for c in components if c.name in stages],
+        fips=fips_base_image is not None,
+        fips_preinstall=fips_preinstall_specs(python_lockfiles) if fips_base_image else (),
     )
     assemble_dockerfile(docker_context)
 

@@ -1,0 +1,77 @@
+# Support overriding with OPENSSL_CONF_INCLUDE
+.pragma includedir:/etc/ssl
+
+config_diagnostics = 1
+openssl_conf = openssl_init
+
+[default]
+CHAINGUARD_LEGACY_ALLOWED = 1
+
+.include fipsmodule.cnf
+
+# Include hardened configuration for ca & req apps
+.include ca.cnf
+
+[openssl_init]
+providers = provider_sect
+ssl_conf = ssl_module
+alg_section = algorithm_sect
+random = random
+
+[random]
+seed = JITTER
+properties = fips=yes
+
+[provider_sect]
+fips = fips_sect
+base = base_sect
+legacy = legacy_sect
+
+[base_sect]
+activate = 1
+
+[legacy_sect]
+identity = chainguard-fips-allowed
+module = legacy.so
+activate = $ENV::CHAINGUARD_LEGACY_ALLOWED
+enable-legacy-allowed = $ENV::CHAINGUARD_LEGACY_ALLOWED
+
+[algorithm_sect]
+default_properties = fips=yes
+
+[ssl_module]
+system_default = crypto_policy
+
+# As per RFC 9206, NIST SP 800-52r2 and RFC 9325
+# openssl ciphers -propquery 'fips=yes' -stdname 'DEFAULT:!PSK:!DHE:!CBC:!kRSA:!SHA1:@SECLEVEL=2'
+
+[crypto_policy]
+
+TLS.MaxProtocol = TLSv1.3
+TLS.MinProtocol = TLSv1.2
+
+DTLS.MaxProtocol = DTLSv1.2
+DTLS.MinProtocol = DTLSv1.2
+
+Groups = *secp384r1:secp256r1
+
+Ciphersuites = TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256
+
+CipherString = \
+        TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:\
+        TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:\
+        TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:\
+        TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:\
+        @SECLEVEL=2
+
+# For RFC 9206 list P-384 & SHA-384 first
+SignatureAlgorithms = \
+    ecdsa_secp384r1_sha384:\
+    rsa_pss_pss_sha384:rsa_pss_rsae_sha384:rsa_pkcs1_sha384:\
+    ecdsa_secp256r1_sha256:ecdsa_secp521r1_sha512:\
+    ed25519:ed448:\
+    rsa_pss_pss_sha256:rsa_pss_rsae_sha256:rsa_pkcs1_sha256:\
+    rsa_pss_pss_sha512:rsa_pss_rsae_sha512:rsa_pkcs1_sha512
+
+# Include crypto-policy override, if any
+.include tls.cnf

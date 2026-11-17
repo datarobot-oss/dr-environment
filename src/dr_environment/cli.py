@@ -26,6 +26,10 @@ import click
 from dr_environment.template import build
 from dr_environment.template.versions import SUPPORTED_PYTHON_VERSIONS
 
+# Customer-facing mirror of Chainguard's python-fips (FLEET-1060). Pulling it needs
+# DataRobot-issued Docker Hub credentials.
+DEFAULT_FIPS_BASE_IMAGE = "datarobot/mirror_chainguard_datarobot.com_python-fips"
+
 
 def _package_version() -> str:
     try:
@@ -70,14 +74,33 @@ def cli() -> None:
     help="Override the base image's Python version, taking precedence over versions.yaml's "
     "python.version (and its default) if set.",
 )
+@click.option(
+    "--fips",
+    is_flag=True,
+    help="Build on Chainguard python-fips instead of public Wolfi, for FIPS 140-3 installs.",
+)
+@click.option(
+    "--fips-base-image",
+    envvar="DR_ENVIRONMENT_FIPS_BASE_IMAGE",
+    show_envvar=True,
+    default=DEFAULT_FIPS_BASE_IMAGE,
+    show_default=True,
+    help="python-fips repository used with --fips, without a tag; the tag is <python version>-dev.",
+)
 def template_cmd(
-    template_path: Path, target: str, no_tarball: bool, python_version: str | None
+    template_path: Path,
+    target: str,
+    no_tarball: bool,
+    python_version: str | None,
+    fips: bool,
+    fips_base_image: str,
 ) -> None:
     """Build a Codespace docker context from an application template."""
     docker_context = build(
         template_path.resolve(),
         Path(target),
         python_version=python_version,
+        fips_base_image=fips_base_image if fips else None,
         tarball=not no_tarball,
     )
     click.echo(f"Built docker context: {docker_context}")

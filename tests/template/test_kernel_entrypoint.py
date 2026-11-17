@@ -45,7 +45,7 @@ exit 0
 """,
     # `-c` is the worker-count probe. Anything else is the MCP dispatch.
     "python": """#!/bin/sh
-if [ "$1" = "-c" ]; then echo 3; else echo "python $*" >> "$RECORD"; fi
+if [ "$1" = "-c" ]; then echo 3; else echo "python $* PYTHONPATH=$PYTHONPATH" >> "$RECORD"; fi
 exit 0
 """,
 }
@@ -57,6 +57,7 @@ def _run(
     entry: str | None,
     offline: bool,
     url_prefix: str = "",
+    pythonpath: str = "",
     expect_exit: int = 0,
 ) -> tuple[str, str]:
     code_dir = tmp_path / "code"
@@ -92,6 +93,9 @@ def _run(
         env["UV_OFFLINE"] = "1"
     if url_prefix:
         env["URL_PREFIX"] = url_prefix
+    env.pop("PYTHONPATH", None)
+    if pythonpath:
+        env["PYTHONPATH"] = pythonpath
 
     # The script runs by path rather than `sh <script>`, because the image chmods and execs
     # it, so the shebang selects the interpreter in production.
@@ -140,6 +144,13 @@ def test_an_app_directory_starts_the_mcp_server(tmp_path: Path) -> None:
 
     assert "python -m app.main" in recorded
     assert "nat dragent serve" not in recorded
+
+
+def test_the_mcp_server_keeps_the_image_pythonpath(tmp_path: Path) -> None:
+    """The FIPS image puts its guard on PYTHONPATH; replacing it would start the server unguarded."""
+    _, recorded = _run(tmp_path, entry="app", offline=True, pythonpath="/etc/datarobot-fips")
+
+    assert f"PYTHONPATH={tmp_path / 'code'}:/etc/datarobot-fips" in recorded
 
 
 def test_neither_entry_point_fails_with_a_readable_error(tmp_path: Path) -> None:

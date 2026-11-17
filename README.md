@@ -112,6 +112,38 @@ Defaults:
 dr environment template --template-path . --no-tarball
 ```
 
+### FIPS 140-3
+
+On a FIPS 140-3 install, an execution environment does not start unless its base ships
+`openssl-fips-test`. Public Wolfi does not, so pass `--fips` to build on DataRobot's mirror of
+Chainguard `python-fips`:
+
+```bash
+docker login  # with the DataRobot-issued pull credentials
+dr environment template --template-path . --fips
+```
+
+`--fips` uses `datarobot/mirror_chainguard_datarobot.com_python-fips:<python version>-dev`. To pull
+from another mirror, set `DR_ENVIRONMENT_FIPS_BASE_IMAGE` (or `--fips-base-image`) to its
+repository, without a tag.
+
+`--fips` also keeps the image's crypto in the FIPS module:
+
+- `cryptography` and `grpcio` are built from source against the system OpenSSL, at build time and
+  whenever uv or pip installs them later. PyPI wheels bundle their own OpenSSL and BoringSSL. The
+  build fails if a cached build links anything else.
+- The newest locked `cryptography` and `grpcio` are preinstalled into the system Python, so
+  DataRobot's offline `uv pip install --system --no-cache` for a custom app finds them
+  installed instead of failing to build them. That holds one version of each, so `--fips`
+  refuses a template with more than one custom app (`ApplicationSource` in its Pulumi code).
+- `GODEBUG=fips140=on` for Go tools (`pulumi`, `task`, `gh`, `dr`).
+- A guard on `PYTHONPATH` (`/etc/datarobot-fips`, from datarobot-user-models) stops any Python
+  process whose FIPS module fails, with exit 78. `DATAROBOT_FIPS_ENFORCE=false` turns it off.
+- OpenSSL's legacy provider is replaced by the default one, so `hashlib.md5()` raises and
+  `md5(usedforsecurity=False)` still works.
+
+Node and Pulumi's Go crypto are not FIPS-validated builds.
+
 ## What it produces
 
 ```
